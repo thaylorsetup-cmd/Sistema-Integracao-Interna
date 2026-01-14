@@ -1,0 +1,40 @@
+{
+  "name": "guardiao-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Sistema de Auditoria Operacional em Tempo Real - BBT Transportes",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:frontend": "pnpm --filter @guardiao/frontend dev",
+    "dev:backend": "pnpm --filter @guardiao/backend dev",
+    "build": "pnpm -r build",
+    "build:frontend": "pnpm --filter @guardiao/frontend build",
+    "build:backend": "pnpm --filter @guardiao/backend build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "db:migrate": "pnpm --filter @guardiao/backend db:migrate",
+    "db:seed": "pnpm --filter @guardiao/backend db:seed",
+    "db:reset": "pnpm --filter @guardiao/backend db:reset"
+  },
+  "keywords": [
+    "logistics",
+    "audit",
+    "real-time",
+    "transportation",
+    "bbt"
+  ],
+  "author": "Thaylor - BBT Transportes",
+  "license": "PRIVATE",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm --version:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)",
+      "Bash(copy \"C:\\PROJETO CONSOLIDACAO\\.env.example\" \"C:\\PROJETO CONSOLIDACAO\\.env\")",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm dev)",
+      "Bash(curl:*)",
+      "Bash(dir \"C:\\PROJETO CONSOLIDACAO\" /s /b)",
+      "Bash(xargs:*)",
+      "Bash(dir /b \"C:\\PROJETO CONSOLIDACAO\\SaaS BBT TRUE\")",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)",
+      "Bash(npm run build:*)",
+      "Bash(del /Q DashboardOperador.tsx DashboardGestao.tsx Login.tsx TVDisplay.tsx TvDisplay.tsx)",
+      "Bash(dir /b \"C:\\PROJETO CONSOLIDACAO\")",
+      "Bash(dir:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node:*)",
+      "Bash(del \"c:\\ML System Model\\backup\\BBT-PROJETOS-legacy\\SSW-HELPER\\src\\scrapers\\driver-scraper.ts\")",
+      "Bash(taskkill /F /PID 47136)",
+      "Bash(taskkill //F //PID 47136:*)",
+      "Bash(timeout 5 bash -c 'cd \"\"C:\\PROJETO CONSOLIDACAO\"\" && dir packages')"
+    ]
+  }
+}
