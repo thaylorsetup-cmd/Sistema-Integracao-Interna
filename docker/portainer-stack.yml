@@ -1,0 +1,194 @@
+# =====================================================
+# BBT CONNECT - STACK PORTAINER (Produção)
+# Deploy: Portainer > Stacks > Add Stack > Web Editor
+# =====================================================
+
+version: "3.8"
+
+services:
+  # ===================================================
+  # BACKEND API (Node.js + Express)
+  # ===================================================
+  backend:
+    image: ghcr.io/bbttransportes/bbt-connect-backend:latest
+    # Ou para build local:
+    # build:
+    #   context: ./packages/backend
+    #   dockerfile: Dockerfile
+    container_name: bbt_backend
+    restart: unless-stopped
+    environment:
+      # ---- Server ----
+      NODE_ENV: production
+      API_PORT: 3001
+      CORS_ORIGIN: https://connect.bbttransportes.com.br
+      
+      # ---- JWT ----
+      JWT_SECRET: ${JWT_SECRET:-mudar_em_producao_chave_secreta_512bits}
+      JWT_EXPIRES_IN: 24h
+      
+      # ---- PostgreSQL (container interno) ----
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: bbt_connect
+      POSTGRES_USER: bbt_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2026!}
+      
+      # ---- SQL Server (ERP SSW - EXTERNO) ----
+      MSSQL_HOST: 177.136.206.200
+      MSSQL_PORT: 1433
+      MSSQL_DATABASE: DBExpress
+      MSSQL_USER: mcp_readonly
+      MSSQL_PASSWORD: ${MSSQL_PASSWORD}
+      MSSQL_ENCRYPT: "false"
+      MSSQL_TRUST_CERT: "true"
+      
+      # ---- Redis ----
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # ---- Logs ----
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bbt_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bbt-api.rule=Host(`api.bbttransportes.com.br`)"
+      - "traefik.http.routers.bbt-api.entrypoints=websecure"
+      - "traefik.http.routers.bbt-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.bbt-api.loadbalancer.server.port=3001"
+
+  # ===================================================
+  # FRONTEND (Nginx + React Build)
+  # ===================================================
+  frontend:
+    image: ghcr.io/bbttransportes/bbt-connect-frontend:latest
+    # Ou para build local:
+    # build:
+    #   context: ./packages/frontend
+    #   dockerfile: Dockerfile
+    container_name: bbt_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: https://api.bbttransportes.com.br
+      VITE_WS_URL: wss://api.bbttransportes.com.br
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - bbt_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bbt-frontend.rule=Host(`connect.bbttransportes.com.br`)"
+      - "traefik.http.routers.bbt-frontend.entrypoints=websecure"
+      - "traefik.http.routers.bbt-frontend.tls.certresolver=letsencrypt"
+
+  # ===================================================
+  # POSTGRESQL (Banco de Dados Principal)
+  # ===================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: bbt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bbt_connect
+      POSTGRES_USER: bbt_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2026!}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/backend/src/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbt_admin -d bbt_connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bbt_network
+
+  # ===================================================
+  # REDIS (Cache e Sessões)
+  # ===================================================
+  redis:
+    image: redis:7-alpine
+    container_name: bbt_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bbt_network
+
+  # ===================================================
+  # PGADMIN (Opcional - Gerenciamento DB)
+  # ===================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bbt_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@bbttransportes.com.br}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - bbt_network
+    profiles:
+      - tools
+
+# ===================================================
+# VOLUMES PERSISTENTES
+# ===================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+
+# ===================================================
+# REDE INTERNA
+# ===================================================
+networks:
+  bbt_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

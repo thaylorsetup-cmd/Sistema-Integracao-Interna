@@ -1,0 +1,16 @@
+# Ignorar node_modules e arquivos desnecessários
+node_modules
+npm-debug.log
+pnpm-debug.log
+.env
+.env.local
+.git
+.gitignore
+dist
+*.md
+tests
+coverage
+.vscode
+*.log
+uploads/*
+logs/*

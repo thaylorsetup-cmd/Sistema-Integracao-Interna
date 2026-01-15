@@ -1,0 +1,12 @@
+# Ignorar para build Docker
+node_modules
+npm-debug.log
+pnpm-debug.log
+.env
+.env.local
+.git
+.gitignore
+dist
+*.md
+.vscode
+*.log
