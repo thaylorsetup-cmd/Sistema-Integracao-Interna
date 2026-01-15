@@ -93,4 +93,4 @@ export { GlassCard, GlassPanel, AnimatedBackground, StatusIndicator } from './Gl
 export type { GlassCardProps, GlassPanelProps, AnimatedBackgroundProps, StatusIndicatorProps } from './GlassCard';
 
 // Video/SVG Animated Background
-export { AnimatedBackground as SVGAnimatedBackground, VideoBackground } from './AnimatedBackground';
+export { AnimatedBackground as SVGAnimatedBackground, VideoBackground, LightVideoBackground } from './AnimatedBackground';

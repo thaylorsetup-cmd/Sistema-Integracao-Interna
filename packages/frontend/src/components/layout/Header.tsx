@@ -36,22 +36,19 @@ export function Header({ className = '' }: HeaderProps) {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="flex items-center gap-4">
-                {/* Logo with glow effect */}
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-benfica-blue/30 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <img
-                    src="/bbt-connect-logo.png"
-                    alt="BBT Connect"
-                    className="relative w-11 h-11 object-contain group-hover:scale-105 transition-transform duration-300"
-                  />
+              <div className="flex items-center gap-3">
+                {/* Icon */}
+                <div className="p-2 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-xl shadow-lg shadow-benfica-blue/30 border border-white/20">
+                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold tracking-tight text-white">
-                    BBT Connect
+                <div>
+                  <h1 className="text-lg font-bold tracking-tight text-white">
+                    BBT <span className="text-benfica-blue">Connect</span>
                   </h1>
-                  <p className="text-xs text-benfica-blue font-semibold flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
+                  <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5 text-benfica-blue" />
                     Sistema de Gestão
                   </p>
                 </div>

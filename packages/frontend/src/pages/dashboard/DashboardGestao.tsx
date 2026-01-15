@@ -1,11 +1,224 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout';
-import { BBTMatrixMap } from '@/components/dashboard';
-import { DollarSign, TrendingUp, Activity, Wallet, ArrowUpRight, ArrowDownRight, BarChart3, Map } from 'lucide-react';
+import { DollarSign, TrendingUp, Activity, Wallet, ArrowUpRight, ArrowDownRight, BarChart3, GripVertical } from 'lucide-react';
+
+interface KpiData {
+  id: string;
+  title: string;
+  value: string;
+  change: string;
+  changeType: 'positive' | 'negative';
+  icon: React.ReactNode;
+  color: 'emerald' | 'blue' | 'purple' | 'red';
+  subtitle?: string;
+  route: string;
+}
+
+const initialKpis: KpiData[] = [
+  {
+    id: 'receita',
+    title: 'Receita Mensal',
+    value: 'R$ 245K',
+    change: '+12%',
+    changeType: 'positive',
+    icon: <DollarSign className="h-6 w-6 text-white" />,
+    color: 'emerald',
+    route: '/dashboard/kpi/receita'
+  },
+  {
+    id: 'entregas',
+    title: 'Entregas do Mês',
+    value: '342',
+    change: '+8%',
+    changeType: 'positive',
+    icon: <TrendingUp className="h-6 w-6 text-white" />,
+    color: 'blue',
+    route: '/dashboard/kpi/entregas'
+  },
+  {
+    id: 'eficiencia',
+    title: 'Eficiência',
+    value: '96.5%',
+    change: '+2.3%',
+    changeType: 'positive',
+    icon: <Activity className="h-6 w-6 text-white" />,
+    color: 'purple',
+    route: '/dashboard/kpi/eficiencia'
+  },
+  {
+    id: 'custos',
+    title: 'Custos',
+    value: 'R$ 98K',
+    change: '+5%',
+    changeType: 'negative',
+    icon: <Wallet className="h-6 w-6 text-white" />,
+    color: 'red',
+    route: '/dashboard/kpi/custos'
+  }
+];
+
+interface KanbanCardProps {
+  kpi: KpiData;
+  index: number;
+  onDragStart: (index: number) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDrop: (index: number) => void;
+  isDragging: boolean;
+  dragOverIndex: number | null;
+  onViewDetails: (route: string) => void;
+}
+
+function KanbanCard({
+  kpi,
+  index,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragging,
+  dragOverIndex,
+  onViewDetails
+}: KanbanCardProps) {
+  const colorStyles = {
+    emerald: {
+      gradient: 'from-emerald-500 to-emerald-700',
+      shadow: 'shadow-emerald-500/30',
+      hoverBorder: 'hover:border-emerald-500/30',
+      dropIndicator: 'border-emerald-500',
+    },
+    blue: {
+      gradient: 'from-benfica-blue to-blue-700',
+      shadow: 'shadow-benfica-blue/30',
+      hoverBorder: 'hover:border-benfica-blue/30',
+      dropIndicator: 'border-benfica-blue',
+    },
+    purple: {
+      gradient: 'from-purple-500 to-purple-700',
+      shadow: 'shadow-purple-500/30',
+      hoverBorder: 'hover:border-purple-500/30',
+      dropIndicator: 'border-purple-500',
+    },
+    red: {
+      gradient: 'from-benfica-red to-red-700',
+      shadow: 'shadow-benfica-red/30',
+      hoverBorder: 'hover:border-benfica-red/30',
+      dropIndicator: 'border-red-500',
+    },
+  };
+
+  const styles = colorStyles[kpi.color];
+  const isDropTarget = dragOverIndex === index;
+
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDrop={() => onDrop(index)}
+      className={`
+        bg-white/5 backdrop-blur-xl rounded-2xl border transition-all duration-300 flex flex-col h-full
+        ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}
+        ${isDropTarget ? `border-2 ${styles.dropIndicator} bg-white/10` : 'border-white/10'}
+        ${styles.hoverBorder} hover:bg-white/10 
+        cursor-grab active:cursor-grabbing
+      `}
+    >
+      {/* Kanban Header com Drag Handle */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/3 rounded-t-2xl">
+        <div className="flex items-center gap-2">
+          <GripVertical className="w-4 h-4 text-slate-500 cursor-grab active:cursor-grabbing" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{kpi.title}</span>
+        </div>
+        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${kpi.changeType === 'positive'
+            ? 'text-emerald-400 bg-emerald-500/10'
+            : 'text-red-400 bg-red-500/10'
+          }`}>
+          {kpi.changeType === 'positive' ? (
+            <ArrowUpRight className="w-3 h-3" />
+          ) : (
+            <ArrowDownRight className="w-3 h-3" />
+          )}
+          {kpi.change}
+        </div>
+      </div>
+
+      {/* Kanban Content */}
+      <div className="p-5 flex-1 flex flex-col justify-center">
+        <div className="flex items-start gap-4">
+          <div className={`p-3 bg-gradient-to-br ${styles.gradient} rounded-xl shadow-lg ${styles.shadow} border border-white/10 shrink-0`}>
+            {kpi.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-4xl font-black text-white truncate">{kpi.value}</p>
+            <p className="text-xs text-slate-500 mt-1">{kpi.subtitle || 'vs mês anterior'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Kanban Footer - Quick Actions */}
+      <div className="px-4 py-3 border-t border-white/5 bg-white/3 rounded-b-2xl">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500">Atualizado agora</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(kpi.route);
+            }}
+            className="text-xs text-benfica-blue hover:text-benfica-blue/80 font-medium transition-colors hover:underline"
+          >
+            Ver detalhes →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function DashboardGestao() {
+  const navigate = useNavigate();
+  const [kpis, setKpis] = useState<KpiData[]>(initialKpis);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (dropIndex: number) => {
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newKpis = [...kpis];
+    const [draggedItem] = newKpis.splice(draggedIndex, 1);
+    newKpis.splice(dropIndex, 0, draggedItem);
+
+    setKpis(newKpis);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleViewDetails = (route: string) => {
+    navigate(route);
+  };
+
   return (
     <Container>
-      <div className="space-y-6">
+      <div className="space-y-6" onDragEnd={handleDragEnd}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -24,95 +237,32 @@ export function DashboardGestao() {
           </div>
         </div>
 
-        {/* KPIs de gestão - Dark Glass Style */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Card 1 - Receita Mensal */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-emerald-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl shadow-lg shadow-emerald-500/30 border border-white/10">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex items-center gap-1 text-emerald-400 text-sm font-bold bg-emerald-500/10 px-2 py-1 rounded-lg">
-                <ArrowUpRight className="w-4 h-4" />
-                +12%
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-slate-400">Receita Mensal</p>
-            <p className="text-4xl font-black text-white mt-1">R$ 245K</p>
-            <p className="text-xs text-slate-500 mt-2">vs mês anterior</p>
+        {/* Kanban Board - KPIs */}
+        <div className="bg-white/3 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-8 w-1 bg-gradient-to-b from-emerald-500 to-benfica-blue rounded-full" />
+            <h2 className="text-lg font-bold text-white">Indicadores Principais</h2>
+            <span className="text-xs text-slate-500 bg-white/5 px-2 py-1 rounded-lg">KPIs do Mês</span>
+            <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg ml-auto">
+              ✓ Arraste para reorganizar
+            </span>
           </div>
 
-          {/* Card 2 - Entregas no Mês */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-benfica-blue/30 hover:bg-white/10 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-xl shadow-lg shadow-benfica-blue/30 border border-white/10">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex items-center gap-1 text-emerald-400 text-sm font-bold bg-emerald-500/10 px-2 py-1 rounded-lg">
-                <ArrowUpRight className="w-4 h-4" />
-                +8%
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-slate-400">Entregas no Mês</p>
-            <p className="text-4xl font-black text-white mt-1">342</p>
-            <p className="text-xs text-slate-500 mt-2">vs mês anterior</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {kpis.map((kpi, index) => (
+              <KanbanCard
+                key={kpi.id}
+                kpi={kpi}
+                index={index}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                isDragging={draggedIndex === index}
+                dragOverIndex={dragOverIndex}
+                onViewDetails={handleViewDetails}
+              />
+            ))}
           </div>
-
-          {/* Card 3 - Eficiência */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-purple-500/30 hover:bg-white/10 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl shadow-lg shadow-purple-500/30 border border-white/10">
-                <Activity className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex items-center gap-1 text-emerald-400 text-sm font-bold bg-emerald-500/10 px-2 py-1 rounded-lg">
-                <ArrowUpRight className="w-4 h-4" />
-                +2.3%
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-slate-400">Eficiência</p>
-            <p className="text-4xl font-black text-white mt-1">96.5%</p>
-            <p className="text-xs text-slate-500 mt-2">vs mês anterior</p>
-          </div>
-
-          {/* Card 4 - Custos */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-benfica-red/30 hover:bg-white/10 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-benfica-red to-red-700 rounded-xl shadow-lg shadow-benfica-red/30 border border-white/10">
-                <Wallet className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex items-center gap-1 text-red-400 text-sm font-bold bg-red-500/10 px-2 py-1 rounded-lg">
-                <ArrowDownRight className="w-4 h-4" />
-                +5%
-              </div>
-            </div>
-            <p className="text-sm font-semibold text-slate-400">Custos</p>
-            <p className="text-4xl font-black text-white mt-1">R$ 98K</p>
-            <p className="text-xs text-slate-500 mt-2">vs mês anterior</p>
-          </div>
-        </div>
-
-        {/* Central de Monitoramento BBT - Live Interactive Map */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
-          <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-benfica-blue/10 border-b border-white/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-benfica-blue rounded-xl shadow-lg border border-white/20">
-                  <Map className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-white">Central de Monitoramento BBT</h2>
-                  <p className="text-xs text-slate-400">Rastreamento em tempo real da frota</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/30 flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                  LIVE
-                </span>
-              </div>
-            </div>
-          </div>
-          <BBTMatrixMap className="h-[450px]" />
         </div>
 
         {/* Grid de análises - Dark Glass Style */}
@@ -205,4 +355,3 @@ export function DashboardGestao() {
     </Container>
   );
 }
-

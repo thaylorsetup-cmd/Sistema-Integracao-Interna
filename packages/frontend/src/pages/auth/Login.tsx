@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts';
-import { Truck, Shield, MapPin, Lock, Mail, ArrowRight, Sparkles, Radio } from 'lucide-react';
-import { VideoBackground } from '@/components/ui';
+import { Truck, Shield, MapPin, Lock, Mail, ArrowRight, Sparkles, Radio, BarChart3 } from 'lucide-react';
+import { LightVideoBackground } from '@/components/ui';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -29,10 +29,11 @@ export function Login() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-slate-950 text-white font-sans">
-      {/* Camada de Background - Video BBT */}
-      <VideoBackground
+      {/* Camada de Background - Video BBT Leve */}
+      <LightVideoBackground
         videoSrc="/background-bbt.webm"
-        fallbackToAnimated={true}
+        gifFallback="/background-bbt-small.gif"
+        opacity={0.2}
       />
 
       {/* Conteúdo Principal */}
@@ -40,15 +41,13 @@ export function Login() {
         {/* Lado esquerdo - Branding (Desktop) */}
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-20">
           <div className="space-y-8 animate-fadeIn">
-            {/* Logo */}
+            {/* Logo - Igual ao interior do sistema */}
             <div className="flex items-center gap-4">
               <div className="relative group">
                 <div className="absolute -inset-2 bg-benfica-blue/30 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity" />
-                <img
-                  src="/bbt-connect-logo-truck.png"
-                  alt="BBT Connect"
-                  className="relative w-20 h-20 object-contain"
-                />
+                <div className="relative p-3 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg shadow-benfica-blue/30 border border-white/20">
+                  <BarChart3 className="w-10 h-10 text-white" />
+                </div>
               </div>
               <div>
                 <h1 className="text-4xl font-black text-white tracking-tight">BBT Connect</h1>
@@ -112,24 +111,22 @@ export function Login() {
         {/* Lado direito - Formulário */}
         <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-md animate-slideUp">
-            {/* Mobile Logo */}
+            {/* Mobile Logo - Igual ao interior */}
             <div className="lg:hidden text-center mb-8">
               <div className="inline-flex items-center gap-3 mb-4">
-                <img
-                  src="/bbt-connect-logo.png"
-                  alt="BBT Connect"
-                  className="w-14 h-14 object-contain"
-                />
+                <div className="p-2.5 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-xl shadow-lg shadow-benfica-blue/30 border border-white/20">
+                  <BarChart3 className="w-8 h-8 text-white" />
+                </div>
               </div>
               <h1 className="text-2xl font-bold text-white">BBT Connect</h1>
               <p className="text-benfica-blue text-sm">Sistema de Gestão</p>
             </div>
 
-            {/* Card do formulário - Glassmorphism */}
-            <div className="bg-slate-950/40 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10 hover:border-white/20 transition-all duration-300">
-              {/* Header do card */}
+            {/* Card do formulário - Glassmorphism com cores contextuais (sem vermelho) */}
+            <div className="bg-slate-950/60 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10 hover:border-benfica-blue/20 transition-all duration-300">
+              {/* Header do card - Azul ao invés de vermelho */}
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-benfica-red to-red-700 rounded-2xl mb-4 shadow-lg shadow-benfica-red/30">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl mb-4 shadow-lg shadow-benfica-blue/30 border border-white/20">
                   <Lock className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-2xl font-bold text-white">Acesso ao Sistema</h2>
@@ -185,10 +182,10 @@ export function Login() {
                   </div>
                 </div>
 
-                {/* Erro */}
+                {/* Erro - Laranja/Amber ao invés de vermelho */}
                 {error && (
-                  <div className="bg-benfica-red/10 border border-benfica-red/30 text-red-400 px-4 py-3 rounded-xl flex items-center gap-2">
-                    <div className="w-2 h-2 bg-benfica-red rounded-full animate-pulse" />
+                  <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-3 rounded-xl flex items-center gap-2">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                     {error}
                   </div>
                 )}
@@ -204,13 +201,13 @@ export function Login() {
                   </a>
                 </div>
 
-                {/* Botão Submit */}
+                {/* Botão Submit - Azul ao invés de vermelho */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-benfica-red to-red-700 text-white py-4 rounded-xl
-                           font-bold text-lg shadow-lg shadow-benfica-red/30
-                           hover:from-red-600 hover:to-red-800 hover:shadow-benfica-red/50 hover:-translate-y-0.5
+                  className="w-full bg-gradient-to-r from-benfica-blue to-blue-700 text-white py-4 rounded-xl
+                           font-bold text-lg shadow-lg shadow-benfica-blue/30
+                           hover:from-blue-600 hover:to-blue-800 hover:shadow-benfica-blue/50 hover:-translate-y-0.5
                            active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed
                            transition-all duration-200 flex items-center justify-center gap-2
                            border border-white/10"
@@ -235,16 +232,16 @@ export function Login() {
                   <div className="w-full border-t border-white/10" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-slate-950/40 px-4 text-sm text-slate-500">ou</span>
+                  <span className="bg-slate-950/60 px-4 text-sm text-slate-500">ou</span>
                 </div>
               </div>
 
               {/* Botão secundário */}
               <button
                 type="button"
-                className="w-full bg-benfica-blue/10 text-benfica-blue py-4 rounded-xl
-                         font-bold border border-benfica-blue/30
-                         hover:bg-benfica-blue/20 hover:border-benfica-blue/50 hover:-translate-y-0.5
+                className="w-full bg-white/5 text-slate-300 py-4 rounded-xl
+                         font-bold border border-white/10
+                         hover:bg-white/10 hover:border-white/20 hover:text-white hover:-translate-y-0.5
                          active:translate-y-0 transition-all duration-200"
               >
                 Solicitar Acesso

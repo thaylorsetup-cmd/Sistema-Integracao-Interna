@@ -12,6 +12,7 @@ const DashboardOperador = lazy(() => import('@/pages/dashboard').then(module => 
 const DashboardGestao = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.DashboardGestao })));
 const DashboardCadastroGR = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.DashboardCadastroGR })));
 const TvDisplay = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.TvDisplay })));
+const KpiDetalhes = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.KpiDetalhes })));
 
 const TvMapa = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvMapa })));
 const TvKpis = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvKpis })));
@@ -71,6 +72,16 @@ function App() {
                   <MainLayout>
                     <Suspense fallback={<Loading />}>
                       <DashboardCadastroGR />
+                    </Suspense>
+                  </MainLayout>
+                }
+              />
+              <Route
+                path="/dashboard/kpi/:tipo"
+                element={
+                  <MainLayout>
+                    <Suspense fallback={<Loading />}>
+                      <KpiDetalhes />
                     </Suspense>
                   </MainLayout>
                 }

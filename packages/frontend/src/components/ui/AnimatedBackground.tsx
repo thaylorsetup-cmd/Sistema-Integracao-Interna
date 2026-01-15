@@ -19,8 +19,8 @@ export function AnimatedBackground({
     <div className={`fixed inset-0 overflow-hidden ${className}`}>
       {/* Base gradient */}
       <div className={`absolute inset-0 ${variant === 'dark'
-          ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'
-          : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'
+        ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'
+        : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'
         }`} />
 
       {/* Animated SVG Background */}
@@ -199,8 +199,8 @@ export function AnimatedBackground({
       {/* Overlay for contrast */}
       {showOverlay && (
         <div className={`absolute inset-0 ${variant === 'dark'
-            ? 'bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-900/50'
-            : 'bg-gradient-to-t from-white via-white/70 to-slate-100/50'
+          ? 'bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-900/50'
+          : 'bg-gradient-to-t from-white via-white/70 to-slate-100/50'
           }`} />
       )}
 
@@ -296,6 +296,59 @@ export function VideoBackground({
           50% { transform: translateY(-20px) scale(1.05); }
         }
       `}</style>
+    </div>
+  );
+}
+
+/**
+ * LightVideoBackground - Versão com VÍDEO REAL de forma leve
+ * Carrega o vídeo de forma lazy e exibe com baixa opacidade
+ * Otimizado para não impactar performance
+ */
+interface LightVideoBackgroundProps {
+  videoSrc?: string;
+  gifFallback?: string;
+  className?: string;
+  opacity?: number;
+}
+
+export function LightVideoBackground({
+  videoSrc = '/background-bbt.webm',
+  gifFallback = '/background-bbt-small.gif',
+  className = '',
+  opacity = 0.15
+}: LightVideoBackgroundProps) {
+  return (
+    <div className={`fixed inset-0 z-0 overflow-hidden ${className}`}>
+      {/* Base gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+
+      {/* Video com baixa opacidade - carrega lazy */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="none"
+        poster=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ opacity }}
+      >
+        <source src={videoSrc} type="video/webm" />
+        {/* Fallback para GIF se vídeo não carregar */}
+        <img
+          src={gifFallback}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity }}
+        />
+      </video>
+
+      {/* Overlay para contraste e legibilidade */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-900/60" />
+
+      {/* Overlay lateral para área do formulário */}
+      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-slate-950/90 to-transparent" />
     </div>
   );
 }
