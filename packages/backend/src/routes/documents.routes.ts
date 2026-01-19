@@ -1,165 +1,560 @@
 /**
  * Rotas de Documentos
+ * Upload, download e gerenciamento de documentos
  */
-
-import { Router, Request, Response } from 'express';
-import { z } from 'zod';
+import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { asyncHandler, Errors } from '../middlewares/error.middleware.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { uploadMultiple } from '../middlewares/upload.middleware.js';
-import * as documentService from '../services/document.service.js';
-import * as auditService from '../services/audit.service.js';
-import { config } from '../config/env.js';
+import { db } from '../config/database.js';
+import { requireAuth } from '../middlewares/auth.middleware.js';
+import { requirePermission } from '../middlewares/permission.middleware.js';
+import {
+  uploadSingle,
+  uploadMultiple,
+  uploadRateLimiter,
+  deleteFile,
+  getFilePath,
+  fileExists,
+} from '../middlewares/upload.middleware.js';
+import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
+import type { AuthenticatedRequest } from '../types/api.js';
 import type { DocumentType } from '../types/database.js';
 
 const router = Router();
 
-const documentTypeSchema = z.enum([
-    'crlv', 'antt', 'cnh', 'endereco', 'bancario',
-    'pamcard', 'gr', 'rcv', 'doc_prop', 'end_prop', 'outros'
-]);
+// Tipos de documento validos
+const VALID_DOCUMENT_TYPES: DocumentType[] = [
+  'crlv',
+  'antt',
+  'cnh',
+  'endereco',
+  'bancario',
+  'pamcard',
+  'gr',
+  'rcv',
+  'contrato',
+  'outros',
+];
 
 /**
- * POST /api/documents/upload
- * Upload de múltiplos documentos
+ * GET /api/documents
+ * Lista documentos (com filtros)
  */
-router.post('/upload', authenticate, uploadMultiple, asyncHandler(async (req: Request, res: Response) => {
-    const files = req.files as Express.Multer.File[];
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const { submissionId, tipo, validado, page = '1', limit = '20' } = req.query;
 
-    if (!files || files.length === 0) {
-        throw Errors.BadRequest('Nenhum arquivo enviado');
+    let query = db
+      .selectFrom('documents')
+      .leftJoin('users as uploader', 'documents.uploaded_by', 'uploader.id')
+      .leftJoin('users as validador', 'documents.validado_por', 'validador.id')
+      .select([
+        'documents.id',
+        'documents.submission_id',
+        'documents.tipo',
+        'documents.nome_original',
+        'documents.mime_type',
+        'documents.tamanho_bytes',
+        'documents.validado',
+        'documents.validado_em',
+        'documents.observacao_validacao',
+        'documents.uploaded_at',
+        'uploader.nome as uploaded_by_nome',
+        'validador.nome as validado_por_nome',
+      ]);
+
+    // Filtros
+    if (submissionId) {
+      query = query.where('documents.submission_id', '=', submissionId as string);
     }
 
-    // Parsear metadados dos documentos
-    const metadataRaw = req.body.metadata;
-    let metadata: Array<{ type: DocumentType; customDescription?: string }> = [];
-
-    if (metadataRaw) {
-        try {
-            metadata = JSON.parse(metadataRaw);
-        } catch {
-            throw Errors.BadRequest('Metadata inválido');
-        }
+    if (tipo) {
+      query = query.where('documents.tipo', '=', tipo as DocumentType);
     }
 
-    // Criar registros de documentos
-    const documents = await documentService.createDocuments(
-        files.map((file, index) => ({
-            submission_id: req.body.submission_id || null,
-            type: metadata[index]?.type || 'outros',
-            custom_description: metadata[index]?.customDescription || null,
-            filename: file.originalname,
-            filepath: file.path,
-            mimetype: file.mimetype,
-            size_bytes: file.size,
-        }))
-    );
+    if (validado !== undefined) {
+      query = query.where('documents.validado', '=', validado === 'true');
+    }
 
-    // Log
-    await auditService.createLog({
-        usuario_id: req.user!.id,
-        usuario_nome: req.user!.name,
-        tipo: 'CRIAR',
-        modulo: 'Documentos',
-        descricao: `${documents.length} documento(s) enviado(s)`,
-        detalhes: { documentIds: documents.map(d => d.id) },
-        ip: req.ip || null,
-    });
+    const [documents, totalResult] = await Promise.all([
+      query
+        .orderBy('documents.uploaded_at', 'desc')
+        .limit(Number(limit))
+        .offset((Number(page) - 1) * Number(limit))
+        .execute(),
+      db
+        .selectFrom('documents')
+        .select(db.fn.count('id').as('count'))
+        .executeTakeFirst(),
+    ]);
 
-    res.status(201).json({
-        success: true,
-        data: documents,
+    const total = Number(totalResult?.count || 0);
+
+    res.json({
+      success: true,
+      data: documents,
+      pagination: {
+        total,
+        page: Number(page),
+        pageSize: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
     });
-}));
+  } catch (error) {
+    logger.error('Erro ao listar documentos:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao listar documentos',
+    });
+  }
+});
 
 /**
  * GET /api/documents/:id
- * Busca metadados de um documento
+ * Metadados de um documento
  */
-router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
     const { id } = req.params;
 
-    const document = await documentService.getDocumentById(id);
+    const document = await db
+      .selectFrom('documents')
+      .leftJoin('users as uploader', 'documents.uploaded_by', 'uploader.id')
+      .leftJoin('users as validador', 'documents.validado_por', 'validador.id')
+      .leftJoin('submissions', 'documents.submission_id', 'submissions.id')
+      .where('documents.id', '=', id)
+      .select([
+        'documents.id',
+        'documents.submission_id',
+        'documents.tipo',
+        'documents.nome_original',
+        'documents.nome_armazenado',
+        'documents.mime_type',
+        'documents.tamanho_bytes',
+        'documents.validado',
+        'documents.validado_em',
+        'documents.observacao_validacao',
+        'documents.uploaded_at',
+        'documents.created_at',
+        'uploader.id as uploaded_by_id',
+        'uploader.nome as uploaded_by_nome',
+        'validador.id as validado_por_id',
+        'validador.nome as validado_por_nome',
+        'submissions.nome_motorista',
+        'submissions.cpf',
+      ])
+      .executeTakeFirst();
 
     if (!document) {
-        throw Errors.NotFound('Documento');
+      return res.status(404).json({
+        success: false,
+        error: 'Documento nao encontrado',
+      });
     }
 
     res.json({
-        success: true,
-        data: document,
+      success: true,
+      data: document,
     });
-}));
+  } catch (error) {
+    logger.error('Erro ao buscar documento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar documento',
+    });
+  }
+});
 
 /**
  * GET /api/documents/:id/download
  * Download do arquivo
  */
-router.get('/:id/download', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id/download', requireAuth, async (req, res) => {
+  try {
     const { id } = req.params;
 
-    const document = await documentService.getDocumentById(id);
+    const document = await db
+      .selectFrom('documents')
+      .where('id', '=', id)
+      .select(['caminho', 'nome_original', 'mime_type'])
+      .executeTakeFirst();
 
     if (!document) {
-        throw Errors.NotFound('Documento');
+      return res.status(404).json({
+        success: false,
+        error: 'Documento nao encontrado',
+      });
     }
 
-    // Verificar se arquivo existe
-    if (!fs.existsSync(document.filepath)) {
-        throw Errors.NotFound('Arquivo não encontrado no servidor');
+    const filePath = getFilePath(document.caminho);
+
+    if (!fileExists(document.caminho)) {
+      logger.error(`Arquivo nao encontrado: ${filePath}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo nao encontrado no servidor',
+      });
     }
 
-    // Log de visualização
-    await auditService.createLog({
-        usuario_id: req.user!.id,
-        usuario_nome: req.user!.name,
-        tipo: 'VISUALIZAR',
-        modulo: 'Documentos',
-        descricao: `Download: ${document.filename}`,
-        detalhes: { documentId: document.id },
-        ip: req.ip || null,
+    res.setHeader('Content-Type', document.mime_type);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(document.nome_original)}"`
+    );
+
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (error) {
+    logger.error('Erro ao fazer download:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao fazer download',
     });
+  }
+});
 
-    res.download(document.filepath, document.filename);
-}));
+/**
+ * POST /api/documents/upload
+ * Upload de documento unico
+ */
+router.post(
+  '/upload',
+  requireAuth,
+  requirePermission('criarCadastros'),
+  uploadRateLimiter,
+  uploadSingle,
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { submissionId, tipo } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'Arquivo obrigatorio',
+        });
+      }
+
+      if (!submissionId) {
+        // Deletar arquivo se nao tiver submissionId
+        await deleteFile(file.path);
+        return res.status(400).json({
+          success: false,
+          error: 'submissionId obrigatorio',
+        });
+      }
+
+      if (!tipo || !VALID_DOCUMENT_TYPES.includes(tipo)) {
+        await deleteFile(file.path);
+        return res.status(400).json({
+          success: false,
+          error: 'Tipo de documento invalido',
+          validTypes: VALID_DOCUMENT_TYPES,
+        });
+      }
+
+      // Verificar se submission existe
+      const submission = await db
+        .selectFrom('submissions')
+        .where('id', '=', submissionId)
+        .select(['id', 'status'])
+        .executeTakeFirst();
+
+      if (!submission) {
+        await deleteFile(file.path);
+        return res.status(404).json({
+          success: false,
+          error: 'Submission nao encontrada',
+        });
+      }
+
+      // Calcular caminho relativo
+      const relativePath = path.relative(path.resolve(env.UPLOAD_DIR), file.path);
+
+      // Criar registro do documento
+      const document = await db
+        .insertInto('documents')
+        .values({
+          submission_id: submissionId,
+          tipo: tipo as DocumentType,
+          nome_original: file.originalname,
+          nome_armazenado: file.filename,
+          mime_type: file.mimetype,
+          tamanho_bytes: file.size,
+          caminho: relativePath,
+          uploaded_by: authReq.user!.id,
+          validado: false,
+        })
+        .returning([
+          'id',
+          'tipo',
+          'nome_original',
+          'mime_type',
+          'tamanho_bytes',
+          'uploaded_at',
+        ])
+        .executeTakeFirst();
+
+      logger.info(
+        `Documento uploaded: ${document?.id} (${tipo}) por ${authReq.user?.email}`
+      );
+
+      res.status(201).json({
+        success: true,
+        data: document,
+        message: 'Documento enviado com sucesso',
+      });
+    } catch (error) {
+      // Tentar deletar arquivo em caso de erro
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
+      logger.error('Erro no upload:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao fazer upload',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/documents/upload-multiple
+ * Upload de multiplos documentos
+ */
+router.post(
+  '/upload-multiple',
+  requireAuth,
+  requirePermission('criarCadastros'),
+  uploadRateLimiter,
+  uploadMultiple,
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { submissionId, tipos } = req.body;
+      const files = req.files as Express.Multer.File[];
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Arquivos obrigatorios',
+        });
+      }
+
+      if (!submissionId) {
+        // Deletar arquivos
+        for (const file of files) {
+          await deleteFile(file.path);
+        }
+        return res.status(400).json({
+          success: false,
+          error: 'submissionId obrigatorio',
+        });
+      }
+
+      // Parse tipos se for string JSON
+      let tiposArray: string[];
+      try {
+        tiposArray = typeof tipos === 'string' ? JSON.parse(tipos) : tipos;
+      } catch {
+        tiposArray = [];
+      }
+
+      if (!tiposArray || tiposArray.length !== files.length) {
+        for (const file of files) {
+          await deleteFile(file.path);
+        }
+        return res.status(400).json({
+          success: false,
+          error: 'Quantidade de tipos deve corresponder a quantidade de arquivos',
+        });
+      }
+
+      // Verificar submission
+      const submission = await db
+        .selectFrom('submissions')
+        .where('id', '=', submissionId)
+        .select(['id'])
+        .executeTakeFirst();
+
+      if (!submission) {
+        for (const file of files) {
+          await deleteFile(file.path);
+        }
+        return res.status(404).json({
+          success: false,
+          error: 'Submission nao encontrada',
+        });
+      }
+
+      // Criar documentos
+      const documents = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const tipo = tiposArray[i] as DocumentType;
+
+        if (!VALID_DOCUMENT_TYPES.includes(tipo)) {
+          continue; // Pula tipos invalidos
+        }
+
+        const relativePath = path.relative(path.resolve(env.UPLOAD_DIR), file.path);
+
+        const doc = await db
+          .insertInto('documents')
+          .values({
+            submission_id: submissionId,
+            tipo,
+            nome_original: file.originalname,
+            nome_armazenado: file.filename,
+            mime_type: file.mimetype,
+            tamanho_bytes: file.size,
+            caminho: relativePath,
+            uploaded_by: authReq.user!.id,
+            validado: false,
+          })
+          .returning(['id', 'tipo', 'nome_original', 'tamanho_bytes'])
+          .executeTakeFirst();
+
+        if (doc) {
+          documents.push(doc);
+        }
+      }
+
+      logger.info(
+        `${documents.length} documentos uploaded para submission ${submissionId} por ${authReq.user?.email}`
+      );
+
+      res.status(201).json({
+        success: true,
+        data: documents,
+        message: `${documents.length} documento(s) enviado(s) com sucesso`,
+      });
+    } catch (error) {
+      // Tentar deletar arquivos em caso de erro
+      if (req.files && Array.isArray(req.files)) {
+        for (const file of req.files) {
+          await deleteFile(file.path);
+        }
+      }
+
+      logger.error('Erro no upload multiplo:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao fazer upload',
+      });
+    }
+  }
+);
+
+/**
+ * PUT /api/documents/:id/validar
+ * Valida ou invalida um documento
+ */
+router.put(
+  '/:id/validar',
+  requireAuth,
+  requirePermission('aprovarCadastros'),
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
+      const { validado, observacao } = req.body;
+
+      if (typeof validado !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: 'Campo validado obrigatorio (boolean)',
+        });
+      }
+
+      const updated = await db
+        .updateTable('documents')
+        .set({
+          validado,
+          validado_por: authReq.user!.id,
+          validado_em: new Date(),
+          observacao_validacao: observacao || null,
+        })
+        .where('id', '=', id)
+        .returning(['id', 'tipo', 'validado', 'validado_em', 'observacao_validacao'])
+        .executeTakeFirst();
+
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          error: 'Documento nao encontrado',
+        });
+      }
+
+      logger.info(
+        `Documento ${id} ${validado ? 'validado' : 'invalidado'} por ${authReq.user?.email}`
+      );
+
+      res.json({
+        success: true,
+        data: updated,
+        message: validado ? 'Documento validado' : 'Documento invalidado',
+      });
+    } catch (error) {
+      logger.error('Erro ao validar documento:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao validar documento',
+      });
+    }
+  }
+);
 
 /**
  * DELETE /api/documents/:id
  * Remove documento
  */
-router.delete('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+router.delete(
+  '/:id',
+  requireAuth,
+  requirePermission('deletarCadastros'),
+  async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
 
-    // Somente admin e gestor podem deletar
-    if (!['admin', 'gestor'].includes(req.user!.role)) {
-        throw Errors.Forbidden('Sem permissão para deletar documentos');
-    }
+      // Buscar documento
+      const document = await db
+        .selectFrom('documents')
+        .where('id', '=', id)
+        .select(['id', 'caminho', 'nome_original'])
+        .executeTakeFirst();
 
-    const document = await documentService.getDocumentById(id);
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: 'Documento nao encontrado',
+        });
+      }
 
-    if (!document) {
-        throw Errors.NotFound('Documento');
-    }
+      // Deletar arquivo fisico
+      await deleteFile(document.caminho);
 
-    await documentService.deleteDocument(id);
+      // Deletar registro
+      await db.deleteFrom('documents').where('id', '=', id).execute();
 
-    // Log
-    await auditService.createLog({
-        usuario_id: req.user!.id,
-        usuario_nome: req.user!.name,
-        tipo: 'DELETAR',
-        modulo: 'Documentos',
-        descricao: `Documento removido: ${document.filename}`,
-        detalhes: { documentId: id, type: document.type },
-        ip: req.ip || null,
-    });
+      logger.info(`Documento deletado: ${id} por ${authReq.user?.email}`);
 
-    res.json({
+      res.json({
         success: true,
-        message: 'Documento removido',
-    });
-}));
+        message: 'Documento removido com sucesso',
+      });
+    } catch (error) {
+      logger.error('Erro ao deletar documento:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao deletar documento',
+      });
+    }
+  }
+);
 
 export default router;

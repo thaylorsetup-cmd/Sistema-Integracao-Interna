@@ -1,128 +1,112 @@
 /**
- * Rotas de Autenticação
+ * Rotas de Autenticacao
+ * Proxy para Better-Auth + endpoints customizados
  */
-
-import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import { asyncHandler, Errors } from '../middlewares/error.middleware.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import * as authService from '../services/auth.service.js';
-import * as auditService from '../services/audit.service.js';
-import { PERMISSIONS } from '../middlewares/permission.middleware.js';
+import { Router } from 'express';
+import { auth } from '../auth.js';
+import { requireAuth, optionalAuth } from '../middlewares/auth.middleware.js';
+import { getPermissions } from '../middlewares/permission.middleware.js';
+import { authRateLimiter } from '../middlewares/rate-limit.middleware.js';
+import { logger } from '../config/logger.js';
+import type { AuthenticatedRequest } from '../types/api.js';
+import type { UserRole } from '../types/database.js';
 
 const router = Router();
 
-// Schemas de validação
-const loginSchema = z.object({
-    email: z.string().email('Email inválido'),
-    password: z.string().min(1, 'Senha obrigatória'),
+/**
+ * Proxy todas as rotas do better-auth
+ * POST /api/auth/sign-in/email
+ * POST /api/auth/sign-out
+ * GET /api/auth/get-session
+ * etc.
+ */
+router.all('/*', authRateLimiter, async (req, res) => {
+  try {
+    const response = await auth.handler(req, res);
+    return response;
+  } catch (error) {
+    logger.error('Erro no better-auth:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro de autenticacao',
+      message: 'Erro ao processar requisicao de autenticacao',
+    });
+  }
 });
 
 /**
- * POST /api/auth/login
- * Autentica usuário e retorna token JWT
- */
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
-    const { email, password } = loginSchema.parse(req.body);
-
-    const result = await authService.login(email, password);
-
-    if (!result) {
-        throw Errors.Unauthorized('Credenciais inválidas');
-    }
-
-    // Registrar log de login
-    await auditService.createLog({
-        usuario_id: result.user.id,
-        usuario_nome: result.user.name,
-        tipo: 'LOGIN',
-        modulo: 'Autenticação',
-        descricao: 'Login realizado com sucesso',
-        ip: req.ip || req.socket.remoteAddress || null,
-    });
-
-    res.json({
-        success: true,
-        data: result,
-    });
-}));
-
-/**
- * POST /api/auth/logout
- * Invalida sessão (frontend deve descartar token)
- */
-router.post('/logout', authenticate, asyncHandler(async (req: Request, res: Response) => {
-    // Registrar log de logout
-    if (req.user) {
-        await auditService.createLog({
-            usuario_id: req.user.id,
-            usuario_nome: req.user.name,
-            tipo: 'LOGOUT',
-            modulo: 'Autenticação',
-            descricao: 'Logout realizado',
-            ip: req.ip || req.socket.remoteAddress || null,
-        });
-    }
-
-    res.json({
-        success: true,
-        message: 'Logout realizado com sucesso',
-    });
-}));
-
-/**
  * GET /api/auth/me
- * Retorna dados do usuário logado
+ * Retorna dados do usuario autenticado com permissoes
  */
-router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user) {
-        throw Errors.Unauthorized();
-    }
+router.get('/me', requireAuth, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
 
-    const { password_hash, ...userWithoutPassword } = req.user;
-
-    // Calcular permissões
-    const permissions: Record<string, boolean> = {};
-    for (const [key, allowedRoles] of Object.entries(PERMISSIONS)) {
-        permissions[key] = allowedRoles.includes(req.user.role);
-    }
-
-    res.json({
-        success: true,
-        data: {
-            user: userWithoutPassword,
-            permissions,
-        },
+  if (!authReq.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Nao autenticado',
     });
-}));
+  }
+
+  const permissions = getPermissions(authReq.user.role as UserRole);
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: authReq.user.id,
+        email: authReq.user.email,
+        nome: authReq.user.nome,
+        role: authReq.user.role,
+        ativo: authReq.user.ativo,
+        avatar: authReq.user.avatar,
+        filialId: authReq.user.filialId,
+      },
+      permissions,
+      session: {
+        id: authReq.session?.id,
+        expiresAt: authReq.session?.expiresAt,
+      },
+    },
+  });
+});
 
 /**
- * POST /api/auth/refresh
- * Renova o token JWT
+ * GET /api/auth/permissions
+ * Retorna permissoes do usuario
  */
-router.post('/refresh', authenticate, asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user) {
-        throw Errors.Unauthorized();
-    }
+router.get('/permissions', requireAuth, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
 
-    // Buscar usuário atualizado
-    const user = await authService.getUserById(req.user.id);
-
-    if (!user) {
-        throw Errors.Unauthorized('Usuário não encontrado');
-    }
-
-    // Gerar novo token
-    const result = await authService.login(user.email, '');
-
-    // Como o user já está autenticado, geramos um novo token diretamente
-    const { generateToken } = await import('../middlewares/auth.middleware.js');
-    const token = generateToken(req.user);
-
-    res.json({
-        success: true,
-        data: { token },
+  if (!authReq.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Nao autenticado',
     });
-}));
+  }
+
+  const permissions = getPermissions(authReq.user.role as UserRole);
+
+  res.json({
+    success: true,
+    data: permissions,
+  });
+});
+
+/**
+ * GET /api/auth/check
+ * Verificacao rapida de autenticacao
+ */
+router.get('/check', optionalAuth, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+
+  res.json({
+    success: true,
+    data: {
+      authenticated: !!authReq.user,
+      userId: authReq.user?.id,
+    },
+  });
+});
 
 export default router;

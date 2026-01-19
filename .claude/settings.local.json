@@ -30,7 +30,12 @@
       "Bash(del \"c:\\ML System Model\\backup\\BBT-PROJETOS-legacy\\SSW-HELPER\\src\\scrapers\\driver-scraper.ts\")",
       "Bash(taskkill /F /PID 47136)",
       "Bash(taskkill //F //PID 47136:*)",
-      "Bash(timeout 5 bash -c 'cd \"\"C:\\PROJETO CONSOLIDACAO\"\" && dir packages')"
+      "Bash(timeout 5 bash -c 'cd \"\"C:\\PROJETO CONSOLIDACAO\"\" && dir packages')",
+      "Bash(tree:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(test:*)",
+      "Bash(docker --version:*)",
+      "Bash(git add:*)"
     ]
   }
 }

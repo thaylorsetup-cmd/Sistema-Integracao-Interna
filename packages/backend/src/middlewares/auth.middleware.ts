@@ -1,119 +1,92 @@
 /**
- * Middleware de Autenticação JWT
+ * Middleware de Autenticacao
+ * Verifica sessao via Better-Auth
  */
-
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env.js';
-import { db } from '../config/database.js';
-import type { User, UserRole } from '../types/database.js';
-
-// Extender Request do Express
-declare global {
-    namespace Express {
-        interface Request {
-            user?: User;
-            userId?: string;
-        }
-    }
-}
-
-export interface JWTPayload {
-    userId: string;
-    email: string;
-    role: UserRole;
-    iat: number;
-    exp: number;
-}
+import type { Response, NextFunction } from 'express';
+import { auth } from '../auth.js';
+import { logger } from '../config/logger.js';
+import type { AuthenticatedRequest } from '../types/api.js';
 
 /**
- * Middleware que verifica se o usuário está autenticado
+ * Middleware que requer autenticacao
+ * Verifica se o usuario tem uma sessao valida
  */
-export async function authenticate(
-    req: Request,
-    res: Response,
-    next: NextFunction
+export async function requireAuth(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
 ): Promise<void> {
-    try {
-        const authHeader = req.headers.authorization;
+  try {
+    // Obter sessao do better-auth
+    const session = await auth.api.getSession({
+      headers: req.headers as Headers,
+    });
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({
-                success: false,
-                error: 'Token não fornecido'
-            });
-            return;
-        }
-
-        const token = authHeader.split(' ')[1];
-
-        const decoded = jwt.verify(token, config.JWT_SECRET) as JWTPayload;
-
-        // Buscar usuário no banco
-        const user = await db
-            .selectFrom('users')
-            .selectAll()
-            .where('id', '=', decoded.userId)
-            .where('ativo', '=', true)
-            .executeTakeFirst();
-
-        if (!user) {
-            res.status(401).json({
-                success: false,
-                error: 'Usuário não encontrado ou inativo'
-            });
-            return;
-        }
-
-        req.user = user;
-        req.userId = user.id;
-        next();
-    } catch (error) {
-        if (error instanceof jwt.TokenExpiredError) {
-            res.status(401).json({
-                success: false,
-                error: 'Token expirado'
-            });
-            return;
-        }
-
-        if (error instanceof jwt.JsonWebTokenError) {
-            res.status(401).json({
-                success: false,
-                error: 'Token inválido'
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            error: 'Erro de autenticação'
-        });
+    if (!session || !session.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Nao autenticado',
+        message: 'Sessao invalida ou expirada',
+      });
+      return;
     }
-}
 
-/**
- * Gera um token JWT para o usuário
- */
-export function generateToken(user: User): string {
-    const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
+    // Verificar se usuario esta ativo
+    if (!session.user.ativo) {
+      res.status(403).json({
+        success: false,
+        error: 'Usuario desativado',
+        message: 'Sua conta foi desativada. Contate o administrador.',
+      });
+      return;
+    }
+
+    // Adicionar usuario e sessao ao request
+    req.user = session.user as AuthenticatedRequest['user'];
+    req.session = {
+      id: session.session.id,
+      userId: session.user.id,
+      expiresAt: new Date(session.session.expiresAt),
     };
 
-    return jwt.sign(payload, config.JWT_SECRET, {
-        expiresIn: config.JWT_EXPIRES_IN,
+    next();
+  } catch (error) {
+    logger.error('Erro na autenticacao:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno',
+      message: 'Erro ao verificar autenticacao',
     });
+  }
 }
 
 /**
- * Verifica um token e retorna o payload
+ * Middleware opcional de autenticacao
+ * Adiciona usuario se estiver autenticado, mas permite acesso sem autenticacao
  */
-export function verifyToken(token: string): JWTPayload | null {
-    try {
-        return jwt.verify(token, config.JWT_SECRET) as JWTPayload;
-    } catch {
-        return null;
+export async function optionalAuth(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers as Headers,
+    });
+
+    if (session?.user) {
+      req.user = session.user as AuthenticatedRequest['user'];
+      req.session = {
+        id: session.session.id,
+        userId: session.user.id,
+        expiresAt: new Date(session.session.expiresAt),
+      };
     }
+
+    next();
+  } catch (error) {
+    // Em caso de erro, continua sem autenticacao
+    logger.debug('Autenticacao opcional falhou:', error);
+    next();
+  }
 }

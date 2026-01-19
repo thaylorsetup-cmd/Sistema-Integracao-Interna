@@ -1,45 +1,57 @@
 /**
- * Conexão com PostgreSQL usando Kysely
+ * Configuracao do Banco de Dados PostgreSQL com Kysely
  */
-
-import { Pool } from 'pg';
 import { Kysely, PostgresDialect } from 'kysely';
-import { config } from './env.js';
+import pg from 'pg';
+import { env } from './env.js';
 import { logger } from './logger.js';
 import type { Database } from '../types/database.js';
 
-const pool = new Pool({
-    host: config.POSTGRES_HOST,
-    port: config.POSTGRES_PORT,
-    database: config.POSTGRES_DB,
-    user: config.POSTGRES_USER,
-    password: config.POSTGRES_PASSWORD,
-    max: 20, // Suporta 20 conexões simultâneas
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+const { Pool } = pg;
+
+// Pool de conexoes PostgreSQL
+export const pool = new Pool({
+  host: env.POSTGRES_HOST,
+  port: env.POSTGRES_PORT,
+  database: env.POSTGRES_DB,
+  user: env.POSTGRES_USER,
+  password: env.POSTGRES_PASSWORD,
+  max: 20, // Maximo de conexoes
+  idleTimeoutMillis: 30000, // Timeout de conexao ociosa
+  connectionTimeoutMillis: 2000, // Timeout de conexao
 });
 
+// Eventos do pool
 pool.on('connect', () => {
-    logger.debug('Nova conexão PostgreSQL estabelecida');
+  logger.debug('Nova conexao PostgreSQL estabelecida');
 });
 
 pool.on('error', (err) => {
-    logger.error('Erro no pool PostgreSQL:', err);
+  logger.error('Erro no pool PostgreSQL:', err);
 });
 
+// Instancia Kysely
 export const db = new Kysely<Database>({
-    dialect: new PostgresDialect({ pool }),
+  dialect: new PostgresDialect({
+    pool,
+  }),
 });
 
-export async function testConnection(): Promise<boolean> {
-    try {
-        const result = await db.selectFrom('users').select('id').limit(1).execute();
-        logger.info('✅ Conexão PostgreSQL OK');
-        return true;
-    } catch (error) {
-        logger.error('❌ Falha na conexão PostgreSQL:', error);
-        return false;
-    }
+// Funcao para verificar conexao
+export async function checkDatabaseConnection(): Promise<boolean> {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    logger.info(`Conexao com PostgreSQL OK: ${result.rows[0].now}`);
+    return true;
+  } catch (error) {
+    logger.error('Falha na conexao com PostgreSQL:', error);
+    return false;
+  }
 }
 
-export { pool };
+// Funcao para fechar conexoes
+export async function closeDatabaseConnection(): Promise<void> {
+  await db.destroy();
+  await pool.end();
+  logger.info('Conexoes PostgreSQL encerradas');
+}

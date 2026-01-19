@@ -1,66 +1,66 @@
 # =====================================================
-# BACKEND BBT CONNECT - Dockerfile Multi-stage
-# Otimizado para produção no Portainer
+# BBT CONNECT BACKEND - DOCKERFILE
+# Build multi-stage para producao
 # =====================================================
 
-FROM node:20-alpine AS base
-
-# Instalar pnpm
-RUN npm install -g pnpm
-
-# Dependências de build
-RUN apk add --no-cache python3 make g++
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# =====================================================
-# STAGE 1: Instalar dependências
-# =====================================================
-FROM base AS deps
+# Instalar pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
+# Copiar arquivos de dependencias
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod=false
 
-# =====================================================
-# STAGE 2: Build
-# =====================================================
-FROM base AS builder
+# Instalar dependencias (incluindo devDependencies para build)
+RUN pnpm install --frozen-lockfile
 
-COPY --from=deps /app/node_modules ./node_modules
+# Copiar codigo fonte
 COPY . .
 
+# Build TypeScript
 RUN pnpm build
 
 # =====================================================
-# STAGE 3: Produção
-# =====================================================
-FROM node:20-alpine AS runner
+# Stage 2: Production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Criar usuário não-root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 backend
+# Instalar pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copiar apenas produção
+# Criar usuario nao-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copiar arquivos de dependencias
+COPY package.json pnpm-lock.yaml* ./
+
+# Instalar apenas dependencias de producao
+RUN pnpm install --prod --frozen-lockfile
+
+# Copiar build do stage anterior
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
 
-# Criar pasta de uploads com permissões
-RUN mkdir -p /app/uploads /app/logs
-RUN chown -R backend:nodejs /app
+# Copiar migracoes SQL
+COPY --from=builder /app/src/db/migrations ./dist/db/migrations
 
-USER backend
+# Criar diretorios necessarios
+RUN mkdir -p uploads logs && \
+    chown -R nodejs:nodejs /app
 
-# Variáveis de ambiente padrão
-ENV NODE_ENV=production
-ENV PORT=3001
+# Usar usuario nao-root
+USER nodejs
 
+# Expor porta
 EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
+# Comando de inicializacao
 CMD ["node", "dist/index.js"]

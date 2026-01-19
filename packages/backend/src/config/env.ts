@@ -1,50 +1,55 @@
 /**
- * Configurações de ambiente
+ * Configuracao de Variaveis de Ambiente
+ * Validacao com Zod para garantir que todas as variaveis obrigatorias existem
  */
-
+import { z } from 'zod';
 import dotenv from 'dotenv';
-import path from 'path';
 
-// Carregar .env do diretório raiz do projeto
-dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
+// Carregar .env
+dotenv.config();
 
-export const config = {
-    // Server
-    PORT: parseInt(process.env.API_PORT || '3001', 10),
-    NODE_ENV: process.env.NODE_ENV || 'development',
+// Schema de validacao
+const envSchema = z.object({
+  // Servidor
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(3001),
+  BASE_URL: z.string().default('http://localhost:3001'),
 
-    // CORS
-    CORS_ORIGIN: process.env.CORS_ORIGIN || process.env.VITE_API_URL?.replace(':3001', ':5173') || 'http://localhost:5173',
+  // CORS
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
 
-    // JWT
-    JWT_SECRET: process.env.JWT_SECRET || 'guardiao_jwt_secret_change_in_production_2024',
-    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
+  // PostgreSQL
+  POSTGRES_HOST: z.string().default('localhost'),
+  POSTGRES_PORT: z.coerce.number().default(5432),
+  POSTGRES_DB: z.string().default('bbt_connect'),
+  POSTGRES_USER: z.string().default('postgres'),
+  POSTGRES_PASSWORD: z.string().default('postgres'),
 
-    // PostgreSQL
-    POSTGRES_HOST: process.env.POSTGRES_HOST || 'localhost',
-    POSTGRES_PORT: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    POSTGRES_DB: process.env.POSTGRES_DB || 'guardiao_ai',
-    POSTGRES_USER: process.env.POSTGRES_USER || 'guardiao',
-    POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || 'guardiao_ai_2024',
+  // Better-Auth
+  BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET deve ter no minimo 32 caracteres'),
 
-    // SQL Server (ERP SSW)
-    MSSQL_HOST: process.env.MSSQL_HOST || '177.136.206.200',
-    MSSQL_PORT: parseInt(process.env.MSSQL_PORT || '1433', 10),
-    MSSQL_DATABASE: process.env.MSSQL_DATABASE || 'DBExpress',
-    MSSQL_USER: process.env.MSSQL_USER || 'mcp_readonly',
-    MSSQL_PASSWORD: process.env.MSSQL_PASSWORD || '',
-    MSSQL_ENCRYPT: process.env.MSSQL_ENCRYPT === 'true',
-    MSSQL_TRUST_CERT: process.env.MSSQL_TRUST_CERT !== 'false',
+  // Uploads
+  UPLOAD_DIR: z.string().default('./uploads'),
+  MAX_FILE_SIZE: z.coerce.number().default(52428800), // 50MB
 
-    // Redis
-    REDIS_HOST: process.env.REDIS_HOST || 'localhost',
-    REDIS_PORT: parseInt(process.env.REDIS_PORT || '6379', 10),
-    REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
+  // Logs
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 
-    // Upload
-    UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
-    MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '52428800', 10), // 50MB
+  // Rate Limit
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000), // 1 minuto
+  RATE_LIMIT_MAX: z.coerce.number().default(100), // 100 requests
+});
 
-    // Logs
-    LOG_LEVEL: process.env.LOG_LEVEL || 'debug',
-};
+// Validar e exportar
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error('Erro nas variaveis de ambiente:');
+  console.error(parsed.error.format());
+  process.exit(1);
+}
+
+export const env = parsed.data;
+
+// Tipo para uso em outros arquivos
+export type Env = z.infer<typeof envSchema>;

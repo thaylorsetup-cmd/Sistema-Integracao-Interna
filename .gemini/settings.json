@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+        "erp-sqlserver": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "mssql-mcp-server"
+            ],
+            "env": {
+                "MSSQL_HOST": "177.136.206.200",
+                "MSSQL_PORT": "1433",
+                "MSSQL_DATABASE": "DBExpress",
+                "MSSQL_USER": "mcp_readonly",
+                "MSSQL_PASSWORD": "Cdq13xJqsl2t21DTUbbqol"
+            }
+        }
+    }
+}

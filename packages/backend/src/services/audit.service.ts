@@ -1,134 +1,158 @@
 /**
- * Serviço de Auditoria
+ * Service de Auditoria
+ * Registra acoes no sistema
  */
-
 import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import type { AuditLog, NewAuditLog, LogType } from '../types/database.js';
+import type { User } from '../types/database.js';
 
-export interface LogFilters {
-    tipo?: LogType[];
-    usuarioId?: string;
-    modulo?: string;
-    dataInicio?: Date;
-    dataFim?: Date;
-    limit?: number;
-    offset?: number;
+export interface AuditLogData {
+  user?: User | null;
+  acao: string;
+  entidade: string;
+  entidadeId?: string;
+  dadosAnteriores?: unknown;
+  dadosNovos?: unknown;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 /**
- * Cria um novo log de auditoria
+ * Registra uma acao no log de auditoria
  */
-export async function createLog(data: Omit<NewAuditLog, 'id' | 'timestamp'>): Promise<AuditLog> {
-    const [log] = await db
-        .insertInto('audit_logs')
-        .values({
-            ...data,
-            detalhes: data.detalhes || null,
-        })
-        .returningAll()
-        .execute();
+export async function registrarAuditoria(data: AuditLogData): Promise<void> {
+  try {
+    await db
+      .insertInto('audit_logs')
+      .values({
+        user_id: data.user?.id,
+        user_email: data.user?.email,
+        user_nome: data.user?.nome,
+        acao: data.acao,
+        entidade: data.entidade,
+        entidade_id: data.entidadeId,
+        dados_anteriores: data.dadosAnteriores
+          ? JSON.stringify(data.dadosAnteriores)
+          : null,
+        dados_novos: data.dadosNovos
+          ? JSON.stringify(data.dadosNovos)
+          : null,
+        ip_address: data.ipAddress,
+        user_agent: data.userAgent,
+      })
+      .execute();
 
-    logger.debug(`Log criado: ${data.tipo} - ${data.descricao}`);
-    return log;
+    logger.debug(`Auditoria: ${data.acao} em ${data.entidade} por ${data.user?.email || 'sistema'}`);
+  } catch (error) {
+    // Nao deve falhar a operacao principal por causa de auditoria
+    logger.error('Erro ao registrar auditoria:', error);
+  }
 }
 
 /**
- * Busca logs com filtros
+ * Busca logs de auditoria com filtros
  */
-export async function getLogs(filters: LogFilters = {}): Promise<{ logs: AuditLog[], total: number }> {
-    let query = db.selectFrom('audit_logs').selectAll();
-    let countQuery = db.selectFrom('audit_logs').select(db.fn.count('id').as('total'));
+export async function buscarAuditoria(params: {
+  userId?: string;
+  entidade?: string;
+  entidadeId?: string;
+  acao?: string;
+  dataInicio?: Date;
+  dataFim?: Date;
+  page?: number;
+  limit?: number;
+}) {
+  const {
+    userId,
+    entidade,
+    entidadeId,
+    acao,
+    dataInicio,
+    dataFim,
+    page = 1,
+    limit = 50,
+  } = params;
 
-    // Aplicar filtros
-    if (filters.tipo && filters.tipo.length > 0) {
-        query = query.where('tipo', 'in', filters.tipo);
-        countQuery = countQuery.where('tipo', 'in', filters.tipo);
-    }
-
-    if (filters.usuarioId) {
-        query = query.where('usuario_id', '=', filters.usuarioId);
-        countQuery = countQuery.where('usuario_id', '=', filters.usuarioId);
-    }
-
-    if (filters.modulo) {
-        query = query.where('modulo', 'ilike', `%${filters.modulo}%`);
-        countQuery = countQuery.where('modulo', 'ilike', `%${filters.modulo}%`);
-    }
-
-    if (filters.dataInicio) {
-        query = query.where('timestamp', '>=', filters.dataInicio);
-        countQuery = countQuery.where('timestamp', '>=', filters.dataInicio);
-    }
-
-    if (filters.dataFim) {
-        query = query.where('timestamp', '<=', filters.dataFim);
-        countQuery = countQuery.where('timestamp', '<=', filters.dataFim);
-    }
-
-    // Ordenar por mais recente
-    query = query.orderBy('timestamp', 'desc');
-
-    // Paginação
-    if (filters.limit) {
-        query = query.limit(filters.limit);
-    }
-
-    if (filters.offset) {
-        query = query.offset(filters.offset);
-    }
-
-    const [logs, countResult] = await Promise.all([
-        query.execute(),
-        countQuery.executeTakeFirst(),
+  let query = db
+    .selectFrom('audit_logs')
+    .select([
+      'id',
+      'user_id',
+      'user_email',
+      'user_nome',
+      'acao',
+      'entidade',
+      'entidade_id',
+      'dados_anteriores',
+      'dados_novos',
+      'ip_address',
+      'created_at',
     ]);
 
-    return {
-        logs,
-        total: Number(countResult?.total || 0),
-    };
+  if (userId) {
+    query = query.where('user_id', '=', userId);
+  }
+
+  if (entidade) {
+    query = query.where('entidade', '=', entidade);
+  }
+
+  if (entidadeId) {
+    query = query.where('entidade_id', '=', entidadeId);
+  }
+
+  if (acao) {
+    query = query.where('acao', '=', acao);
+  }
+
+  if (dataInicio) {
+    query = query.where('created_at', '>=', dataInicio);
+  }
+
+  if (dataFim) {
+    query = query.where('created_at', '<=', dataFim);
+  }
+
+  const [logs, totalResult] = await Promise.all([
+    query
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset((page - 1) * limit)
+      .execute(),
+    db
+      .selectFrom('audit_logs')
+      .select(db.fn.count('id').as('count'))
+      .executeTakeFirst(),
+  ]);
+
+  return {
+    logs,
+    total: Number(totalResult?.count || 0),
+    page,
+    limit,
+  };
 }
 
 /**
- * Busca logs de um usuário específico
+ * Helpers para acoes comuns
  */
-export async function getLogsByUser(usuarioId: string, limit: number = 50): Promise<AuditLog[]> {
-    return db
-        .selectFrom('audit_logs')
-        .selectAll()
-        .where('usuario_id', '=', usuarioId)
-        .orderBy('timestamp', 'desc')
-        .limit(limit)
-        .execute();
-}
+export const AuditActions = {
+  // Usuarios
+  USER_LOGIN: 'user.login',
+  USER_LOGOUT: 'user.logout',
+  USER_CREATE: 'user.create',
+  USER_UPDATE: 'user.update',
+  USER_DELETE: 'user.delete',
 
-/**
- * Exporta logs para JSON
- */
-export async function exportLogsJson(filters: LogFilters = {}): Promise<AuditLog[]> {
-    const { logs } = await getLogs({ ...filters, limit: 10000 });
-    return logs;
-}
+  // Submissions
+  SUBMISSION_CREATE: 'submission.create',
+  SUBMISSION_UPDATE: 'submission.update',
+  SUBMISSION_ANALISE_START: 'submission.analise.start',
+  SUBMISSION_APPROVE: 'submission.approve',
+  SUBMISSION_REJECT: 'submission.reject',
 
-/**
- * Exporta logs para CSV
- */
-export async function exportLogsCsv(filters: LogFilters = {}): Promise<string> {
-    const { logs } = await getLogs({ ...filters, limit: 10000 });
-
-    const headers = ['ID', 'Data/Hora', 'Usuário', 'Tipo', 'Módulo', 'Descrição', 'IP'];
-    const rows = logs.map(log => [
-        log.id,
-        new Date(log.timestamp).toISOString(),
-        log.usuario_nome,
-        log.tipo,
-        log.modulo,
-        log.descricao,
-        log.ip || '',
-    ]);
-
-    return [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
-}
+  // Documentos
+  DOCUMENT_UPLOAD: 'document.upload',
+  DOCUMENT_VALIDATE: 'document.validate',
+  DOCUMENT_DELETE: 'document.delete',
+} as const;

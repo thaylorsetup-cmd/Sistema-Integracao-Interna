@@ -1,237 +1,437 @@
 /**
- * Serviço de Submissões (Fila de Cadastros)
+ * Service de Submissions
+ * Logica de negocio da fila de cadastros
  */
-
 import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import type { Submission, NewSubmission, SubmissionUpdate, SubmissionStatus, SubmissionPriority } from '../types/database.js';
+import { registrarAuditoria, AuditActions } from './audit.service.js';
+import type { User, SubmissionStatus, SubmissionPriority } from '../types/database.js';
 
-export interface SubmissionFilters {
-    status?: SubmissionStatus[];
-    prioridade?: SubmissionPriority[];
-    operadorId?: string;
-    atribuidoA?: string;
-    limit?: number;
-    offset?: number;
+export interface CreateSubmissionData {
+  nomeMotorista: string;
+  cpf: string;
+  telefone?: string;
+  email?: string;
+  placa?: string;
+  tipoVeiculo?: string;
+  prioridade?: SubmissionPriority;
+  observacoes?: string;
+  origem?: string;
+  destino?: string;
+  localizacaoAtual?: string;
+  tipoMercadoria?: string;
 }
 
-export interface SubmissionWithOperator extends Submission {
-    operador_nome: string;
-    operador_email: string;
-    atribuido_nome?: string | null;
-    document_count: number;
-}
-
-/**
- * Cria nova submissão
- */
-export async function createSubmission(data: NewSubmission): Promise<Submission> {
-    const [submission] = await db
-        .insertInto('submissions')
-        .values({
-            ...data,
-            status: 'pendente',
-            prioridade: data.prioridade || 'normal',
-        })
-        .returningAll()
-        .execute();
-
-    logger.info(`Submissão criada: ${submission.id}`);
-    return submission;
+export interface UpdateSubmissionData {
+  nomeMotorista?: string;
+  telefone?: string;
+  email?: string;
+  placa?: string;
+  tipoVeiculo?: string;
+  prioridade?: SubmissionPriority;
+  observacoes?: string;
 }
 
 /**
- * Busca submissão por ID
+ * Cria nova submission
  */
-export async function getSubmissionById(id: string): Promise<Submission | null> {
-    const submission = await db
-        .selectFrom('submissions')
-        .selectAll()
-        .where('id', '=', id)
-        .executeTakeFirst();
+export async function criarSubmission(
+  data: CreateSubmissionData,
+  operador: User,
+  ipAddress?: string
+) {
+  const submission = await db
+    .insertInto('submissions')
+    .values({
+      nome_motorista: data.nomeMotorista,
+      cpf: data.cpf,
+      telefone: data.telefone,
+      email: data.email,
+      placa: data.placa,
+      tipo_veiculo: data.tipoVeiculo,
+      prioridade: data.prioridade || 'normal',
+      observacoes: data.observacoes,
+      operador_id: operador.id,
+      status: 'pendente',
+      data_envio: new Date(),
+    })
+    .returningAll()
+    .executeTakeFirst();
 
-    return submission || null;
+  if (submission) {
+    await registrarAuditoria({
+      user: operador,
+      acao: AuditActions.SUBMISSION_CREATE,
+      entidade: 'submission',
+      entidadeId: submission.id,
+      dadosNovos: submission,
+      ipAddress,
+    });
+
+    logger.info(`Submission criada: ${submission.id} por ${operador.email}`);
+  }
+
+  return submission;
 }
 
 /**
- * Busca submissão com dados do operador
+ * Atualiza submission
  */
-export async function getSubmissionWithDetails(id: string): Promise<SubmissionWithOperator | null> {
-    const submission = await db
-        .selectFrom('submissions as s')
-        .innerJoin('users as operador', 'operador.id', 's.operador_id')
-        .leftJoin('users as atribuido', 'atribuido.id', 's.atribuido_a')
-        .select([
-            's.id',
-            's.operador_id',
-            's.atribuido_a',
-            's.status',
-            's.prioridade',
-            's.created_at',
-            's.started_at',
-            's.finished_at',
-            's.motivo_rejeicao',
-            'operador.name as operador_nome',
-            'operador.email as operador_email',
-            'atribuido.name as atribuido_nome',
-        ])
-        .where('s.id', '=', id)
-        .executeTakeFirst();
+export async function atualizarSubmission(
+  id: string,
+  data: UpdateSubmissionData,
+  user: User,
+  ipAddress?: string
+) {
+  // Buscar dados anteriores
+  const anterior = await db
+    .selectFrom('submissions')
+    .where('id', '=', id)
+    .selectAll()
+    .executeTakeFirst();
 
-    if (!submission) return null;
+  if (!anterior) {
+    return null;
+  }
 
-    // Contar documentos
-    const docCount = await db
-        .selectFrom('documents')
-        .select(db.fn.count('id').as('count'))
-        .where('submission_id', '=', id)
-        .executeTakeFirst();
+  // Verificar se pode ser editada
+  if (anterior.status === 'aprovado' || anterior.status === 'rejeitado') {
+    throw new Error('Submission ja finalizada nao pode ser editada');
+  }
 
-    return {
-        ...submission,
-        document_count: Number(docCount?.count || 0),
-    } as SubmissionWithOperator;
+  const updated = await db
+    .updateTable('submissions')
+    .set({
+      ...(data.nomeMotorista && { nome_motorista: data.nomeMotorista }),
+      ...(data.telefone !== undefined && { telefone: data.telefone }),
+      ...(data.email !== undefined && { email: data.email }),
+      ...(data.placa !== undefined && { placa: data.placa }),
+      ...(data.tipoVeiculo !== undefined && { tipo_veiculo: data.tipoVeiculo }),
+      ...(data.prioridade && { prioridade: data.prioridade }),
+      ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
+    })
+    .where('id', '=', id)
+    .returningAll()
+    .executeTakeFirst();
+
+  if (updated) {
+    await registrarAuditoria({
+      user,
+      acao: AuditActions.SUBMISSION_UPDATE,
+      entidade: 'submission',
+      entidadeId: id,
+      dadosAnteriores: anterior,
+      dadosNovos: updated,
+      ipAddress,
+    });
+  }
+
+  return updated;
 }
 
 /**
- * Lista submissões com filtros
+ * Inicia analise de submission
  */
-export async function getSubmissions(filters: SubmissionFilters = {}): Promise<{ submissions: SubmissionWithOperator[], total: number }> {
-    let query = db
-        .selectFrom('submissions as s')
-        .innerJoin('users as operador', 'operador.id', 's.operador_id')
-        .leftJoin('users as atribuido', 'atribuido.id', 's.atribuido_a')
-        .select([
-            's.id',
-            's.operador_id',
-            's.atribuido_a',
-            's.status',
-            's.prioridade',
-            's.created_at',
-            's.started_at',
-            's.finished_at',
-            's.motivo_rejeicao',
-            'operador.name as operador_nome',
-            'operador.email as operador_email',
-            'atribuido.name as atribuido_nome',
-        ]);
+export async function iniciarAnalise(
+  id: string,
+  analista: User,
+  ipAddress?: string
+) {
+  const anterior = await db
+    .selectFrom('submissions')
+    .where('id', '=', id)
+    .selectAll()
+    .executeTakeFirst();
 
-    let countQuery = db.selectFrom('submissions').select(db.fn.count('id').as('total'));
+  if (!anterior) {
+    return null;
+  }
 
-    // Filtros
-    if (filters.status && filters.status.length > 0) {
-        query = query.where('s.status', 'in', filters.status);
-        countQuery = countQuery.where('status', 'in', filters.status);
-    }
+  if (anterior.status !== 'pendente') {
+    throw new Error('Apenas submissions pendentes podem ser analisadas');
+  }
 
-    if (filters.prioridade && filters.prioridade.length > 0) {
-        query = query.where('s.prioridade', 'in', filters.prioridade);
-        countQuery = countQuery.where('prioridade', 'in', filters.prioridade);
-    }
+  const updated = await db
+    .updateTable('submissions')
+    .set({
+      status: 'em_analise',
+      analista_id: analista.id,
+      data_inicio_analise: new Date(),
+    })
+    .where('id', '=', id)
+    .returningAll()
+    .executeTakeFirst();
 
-    if (filters.operadorId) {
-        query = query.where('s.operador_id', '=', filters.operadorId);
-        countQuery = countQuery.where('operador_id', '=', filters.operadorId);
-    }
+  if (updated) {
+    await registrarAuditoria({
+      user: analista,
+      acao: AuditActions.SUBMISSION_ANALISE_START,
+      entidade: 'submission',
+      entidadeId: id,
+      dadosAnteriores: { status: anterior.status },
+      dadosNovos: { status: 'em_analise', analista_id: analista.id },
+      ipAddress,
+    });
 
-    if (filters.atribuidoA) {
-        query = query.where('s.atribuido_a', '=', filters.atribuidoA);
-        countQuery = countQuery.where('atribuido_a', '=', filters.atribuidoA);
-    }
+    logger.info(`Analise iniciada: ${id} por ${analista.email}`);
+  }
 
-    // Ordenar por prioridade (urgente primeiro) e depois por data
-    query = query
-        .orderBy(db.raw(`CASE prioridade WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 ELSE 3 END`))
-        .orderBy('s.created_at', 'asc');
-
-    // Paginação
-    if (filters.limit) {
-        query = query.limit(filters.limit);
-    }
-    if (filters.offset) {
-        query = query.offset(filters.offset);
-    }
-
-    const [submissions, countResult] = await Promise.all([
-        query.execute(),
-        countQuery.executeTakeFirst(),
-    ]);
-
-    // Buscar contagem de documentos para cada submissão
-    const submissionsWithDocs = await Promise.all(
-        submissions.map(async (sub) => {
-            const docCount = await db
-                .selectFrom('documents')
-                .select(db.fn.count('id').as('count'))
-                .where('submission_id', '=', sub.id)
-                .executeTakeFirst();
-
-            return {
-                ...sub,
-                document_count: Number(docCount?.count || 0),
-            } as SubmissionWithOperator;
-        })
-    );
-
-    return {
-        submissions: submissionsWithDocs,
-        total: Number(countResult?.total || 0),
-    };
+  return updated;
 }
 
 /**
- * Atualiza status da submissão
+ * Aprova submission
  */
-export async function updateSubmissionStatus(
-    id: string,
-    status: SubmissionStatus,
-    atribuidoA?: string,
-    motivoRejeicao?: string
-): Promise<Submission | null> {
-    const updateData: SubmissionUpdate = { status };
+export async function aprovarSubmission(
+  id: string,
+  analista: User,
+  observacoes?: string,
+  ipAddress?: string
+) {
+  const anterior = await db
+    .selectFrom('submissions')
+    .where('id', '=', id)
+    .selectAll()
+    .executeTakeFirst();
 
-    if (status === 'em_analise') {
-        updateData.started_at = new Date();
-        if (atribuidoA) {
-            updateData.atribuido_a = atribuidoA;
-        }
-    }
+  if (!anterior) {
+    return null;
+  }
 
-    if (status === 'aprovado' || status === 'rejeitado') {
-        updateData.finished_at = new Date();
-        if (status === 'rejeitado' && motivoRejeicao) {
-            updateData.motivo_rejeicao = motivoRejeicao;
-        }
-    }
+  if (anterior.status === 'aprovado' || anterior.status === 'rejeitado') {
+    throw new Error('Submission ja foi finalizada');
+  }
 
-    const [submission] = await db
-        .updateTable('submissions')
-        .set(updateData)
-        .where('id', '=', id)
-        .returningAll()
-        .execute();
+  const updated = await db
+    .updateTable('submissions')
+    .set({
+      status: 'aprovado',
+      analista_id: analista.id,
+      data_conclusao: new Date(),
+      ...(observacoes && { observacoes }),
+    })
+    .where('id', '=', id)
+    .returningAll()
+    .executeTakeFirst();
 
-    if (submission) {
-        logger.info(`Submissão ${id} atualizada para status: ${status}`);
-    }
+  if (updated) {
+    await registrarAuditoria({
+      user: analista,
+      acao: AuditActions.SUBMISSION_APPROVE,
+      entidade: 'submission',
+      entidadeId: id,
+      dadosAnteriores: { status: anterior.status },
+      dadosNovos: { status: 'aprovado' },
+      ipAddress,
+    });
 
-    return submission || null;
+    logger.info(`Submission aprovada: ${id} por ${analista.email}`);
+  }
+
+  return updated;
 }
 
 /**
- * Calcula tempo de espera em minutos
+ * Rejeita submission
  */
-export function calcularTempoEspera(createdAt: Date, finishedAt: Date | null): number {
-    const fim = finishedAt ? finishedAt.getTime() : Date.now();
-    return Math.floor((fim - createdAt.getTime()) / (1000 * 60));
+export async function rejeitarSubmission(
+  id: string,
+  analista: User,
+  motivoRejeicao: string,
+  categoriaRejeicao?: string,
+  ipAddress?: string
+) {
+  const anterior = await db
+    .selectFrom('submissions')
+    .where('id', '=', id)
+    .selectAll()
+    .executeTakeFirst();
+
+  if (!anterior) {
+    return null;
+  }
+
+  if (anterior.status === 'aprovado' || anterior.status === 'rejeitado') {
+    throw new Error('Submission ja foi finalizada');
+  }
+
+  const updated = await db
+    .updateTable('submissions')
+    .set({
+      status: 'rejeitado',
+      atribuido_a: analista.id,
+      finished_at: new Date(),
+      motivo_rejeicao: motivoRejeicao,
+      ...(categoriaRejeicao && { categoria_rejeicao: categoriaRejeicao }),
+    })
+    .where('id', '=', id)
+    .returningAll()
+    .executeTakeFirst();
+
+  if (updated) {
+    await registrarAuditoria({
+      user: analista,
+      acao: AuditActions.SUBMISSION_REJECT,
+      entidade: 'submission',
+      entidadeId: id,
+      dadosAnteriores: { status: anterior.status },
+      dadosNovos: { status: 'rejeitado', motivo_rejeicao: motivoRejeicao, categoria_rejeicao: categoriaRejeicao },
+      ipAddress,
+    });
+
+    logger.info(`Submission rejeitada: ${id} por ${analista.email} - Categoria: ${categoriaRejeicao}`);
+  }
+
+  return updated;
 }
 
 /**
- * Formata tempo de espera
+ * Adiciona motivo de atraso
  */
-export function formatarTempoEspera(minutos: number): string {
-    if (minutos < 60) return `${minutos} min`;
-    const horas = Math.floor(minutos / 60);
-    const mins = minutos % 60;
-    return mins > 0 ? `${horas}h ${mins}min` : `${horas}h`;
+export async function adicionarAtraso(
+  submissionId: string,
+  motivo: string,
+  user: User,
+  ipAddress?: string
+) {
+  // Verificar se submission existe
+  const submission = await db
+    .selectFrom('submissions')
+    .where('id', '=', submissionId)
+    .selectAll()
+    .executeTakeFirst();
+
+  if (!submission) {
+    throw new Error('Submission nao encontrada');
+  }
+
+  // Criar registro de atraso
+  const delay = await db
+    .insertInto('delays')
+    .values({
+      submission_id: submissionId,
+      motivo,
+      criado_por: user.id,
+      criado_em: new Date(),
+      notificado: false,
+    })
+    .returningAll()
+    .executeTakeFirst();
+
+  if (delay) {
+    await registrarAuditoria({
+      user,
+      acao: 'ATRASO' as any,
+      entidade: 'submission',
+      entidadeId: submissionId,
+      dadosNovos: { motivo, delay_id: delay.id },
+      ipAddress,
+    });
+
+    logger.info(`Atraso adicionado: ${delay.id} para submission ${submissionId} por ${user.email}`);
+  }
+
+  return delay;
+}
+
+/**
+ * Busca atrasos de uma submission
+ */
+export async function buscarDelays(submissionId: string) {
+  const delays = await db
+    .selectFrom('delays')
+    .leftJoin('users', 'delays.criado_por', 'users.id')
+    .where('submission_id', '=', submissionId)
+    .select([
+      'delays.id',
+      'delays.submission_id',
+      'delays.motivo',
+      'delays.criado_em',
+      'delays.notificado',
+      'delays.notificado_em',
+      'users.name as criado_por_nome',
+      'users.email as criado_por_email',
+    ])
+    .orderBy('delays.criado_em', 'desc')
+    .execute();
+
+  return delays;
+}
+
+/**
+ * Marca atraso como notificado
+ */
+export async function marcarAtrasoNotificado(delayId: string) {
+  const updated = await db
+    .updateTable('delays')
+    .set({
+      notificado: true,
+      notificado_em: new Date(),
+    })
+    .where('id', '=', delayId)
+    .returningAll()
+    .executeTakeFirst();
+
+  return updated;
+}
+
+/**
+ * Busca estatisticas da fila
+ */
+export async function getFilaStats() {
+  const [statusCounts, tempoMedio] = await Promise.all([
+    db
+      .selectFrom('submissions')
+      .select([
+        'status',
+        db.fn.count('id').as('count'),
+      ])
+      .groupBy('status')
+      .execute(),
+    db
+      .selectFrom('submissions')
+      .select(
+        db.fn
+          .avg(
+            db.raw(
+              "EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60"
+            )
+          )
+          .as('tempo_medio_minutos')
+      )
+      .where('data_conclusao', 'is not', null)
+      .where('data_inicio_analise', 'is not', null)
+      .executeTakeFirst(),
+  ]);
+
+  const stats = {
+    pendentes: 0,
+    emAnalise: 0,
+    aprovados: 0,
+    rejeitados: 0,
+    total: 0,
+    tempoMedioMinutos: Math.round(Number(tempoMedio?.tempo_medio_minutos) || 0),
+  };
+
+  for (const row of statusCounts) {
+    const count = Number(row.count);
+    stats.total += count;
+
+    switch (row.status) {
+      case 'pendente':
+        stats.pendentes = count;
+        break;
+      case 'em_analise':
+        stats.emAnalise = count;
+        break;
+      case 'aprovado':
+        stats.aprovados = count;
+        break;
+      case 'rejeitado':
+        stats.rejeitados = count;
+        break;
+    }
+  }
+
+  return stats;
 }

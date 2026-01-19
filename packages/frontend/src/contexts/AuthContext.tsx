@@ -1,15 +1,40 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthState, User, Permission } from '@/types';
-import { autenticarUsuario, adicionarLog, getPermissoesPorRole } from '@/services/mockDatabase';
+import type { Permission } from '@/types';
+import { authApi } from '@/services/api';
+
+// =====================================================
+// TIPOS
+// =====================================================
+
+export interface User {
+  id: string;
+  email: string;
+  nome: string;
+  role: 'admin' | 'gestor' | 'operacional' | 'cadastro' | 'comercial' | 'auditor';
+  ativo: boolean;
+  avatar?: string;
+  filialId?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  permissions: Permission | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   hasPermission: (permission: keyof Permission) => boolean;
   isAdmin: () => boolean;
 }
+
+// =====================================================
+// CONTEXT
+// =====================================================
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -20,111 +45,98 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
-    token: null,
+    permissions: null,
     isLoading: true,
     isAuthenticated: false,
   });
 
-  // Carregar token do localStorage ao iniciar
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const userStr = localStorage.getItem('user');
+  // Verificar sessao ao iniciar
+  const checkSession = useCallback(async () => {
+    try {
+      const response = await authApi.getMe();
 
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr) as User;
-        // Reconstruir permissões baseadas no role
-        user.permissions = getPermissoesPorRole(user.role);
+      if (response.success && response.data) {
+        const { user, permissions } = response.data as {
+          user: User;
+          permissions: Permission;
+        };
+
         setAuthState({
           user,
-          token,
+          permissions,
           isLoading: false,
           isAuthenticated: true,
         });
-      } catch {
-        // Se falhar ao parsear, limpar storage
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        setAuthState(prev => ({
-          ...prev,
+      } else {
+        setAuthState({
+          user: null,
+          permissions: null,
           isLoading: false,
-        }));
+          isAuthenticated: false,
+        });
       }
-    } else {
-      setAuthState(prev => ({
-        ...prev,
+    } catch {
+      // Sessao invalida ou expirada
+      setAuthState({
+        user: null,
+        permissions: null,
         isLoading: false,
-      }));
+        isAuthenticated: false,
+      });
     }
   }, []);
 
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  // Login
   const login = async (email: string, password: string) => {
-    // Simular delay de rede
-    await new Promise(resolve => setTimeout(resolve, 500));
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
 
-    const usuario = autenticarUsuario(email, password);
+    try {
+      const response = await authApi.signIn(email, password);
 
-    if (!usuario) {
-      throw new Error('Credenciais inválidas');
+      if (!response.success) {
+        throw new Error(response.error || 'Erro ao fazer login');
+      }
+
+      // Buscar dados do usuario apos login
+      await checkSession();
+    } catch (error) {
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
     }
-
-    // Gerar token mock
-    const token = `mock-token-${usuario.id}-${Date.now()}`;
-
-    // Salvar no localStorage
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(usuario));
-
-    // Registrar log de login
-    adicionarLog({
-      usuarioId: usuario.id,
-      usuarioNome: usuario.name,
-      tipo: 'LOGIN',
-      modulo: 'Autenticação',
-      descricao: 'Login realizado com sucesso',
-    });
-
-    setAuthState({
-      user: usuario,
-      token,
-      isLoading: false,
-      isAuthenticated: true,
-    });
   };
 
-  const logout = () => {
-    // Registrar log de logout se houver usuário
-    if (authState.user) {
-      adicionarLog({
-        usuarioId: authState.user.id,
-        usuarioNome: authState.user.name,
-        tipo: 'LOGOUT',
-        modulo: 'Autenticação',
-        descricao: 'Logout realizado',
+  // Logout
+  const logout = async () => {
+    try {
+      await authApi.signOut();
+    } catch {
+      // Ignorar erros de logout
+    } finally {
+      setAuthState({
+        user: null,
+        permissions: null,
+        isLoading: false,
+        isAuthenticated: false,
       });
     }
-
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    setAuthState({
-      user: null,
-      token: null,
-      isLoading: false,
-      isAuthenticated: false,
-    });
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    // TODO: Implementar registro quando houver backend
-    console.log('Register:', email, password, name);
-    throw new Error('Registro não disponível. Contate o administrador.');
+  // Atualizar dados do usuario
+  const refreshUser = async () => {
+    await checkSession();
   };
 
+  // Verificar permissao
   const hasPermission = (permission: keyof Permission): boolean => {
-    if (!authState.user) return false;
-    return authState.user.permissions[permission] === true;
+    if (!authState.permissions) return false;
+    return authState.permissions[permission] === true;
   };
 
+  // Verificar se e admin
   const isAdmin = (): boolean => {
     return authState.user?.role === 'admin';
   };
@@ -133,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     ...authState,
     login,
     logout,
-    register,
+    refreshUser,
     hasPermission,
     isAdmin,
   };

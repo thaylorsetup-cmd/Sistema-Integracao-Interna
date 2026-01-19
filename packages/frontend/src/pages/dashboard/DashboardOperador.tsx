@@ -21,8 +21,11 @@ import {
   FileCheck,
   Image,
   Tag,
-  Edit3
+  Edit3,
+  Loader2
 } from 'lucide-react';
+import { filaApi, documentsApi, type DocumentType as ApiDocType } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 
 // Tipos de documentos
 interface DocumentType {
@@ -67,10 +70,14 @@ interface UploadedFile {
   type: string | null;
   customDescription?: string;
   preview?: string;
+  uploadProgress?: number;
+  uploadStatus?: 'pending' | 'uploading' | 'success' | 'error';
+  errorMessage?: string;
 }
 
 export function DashboardOperador() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,7 +85,17 @@ export function DashboardOperador() {
   const [classifyingFileId, setClassifyingFileId] = useState<string | null>(null);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [othersDescription, setOthersDescription] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Campos de informação adicional
+  const [origem, setOrigem] = useState('');
+  const [destino, setDestino] = useState('');
+  const [localizacaoAtual, setLocalizacaoAtual] = useState('');
+  const [tipoMercadoria, setTipoMercadoria] = useState('');
+  const [tipoMercadoriaOutro, setTipoMercadoriaOutro] = useState('');
 
   // Arquivos não classificados
   const unclassifiedFiles = files.filter(f => f.type === null);
@@ -180,18 +197,114 @@ export function DashboardOperador() {
     e.preventDefault();
     if (!allRequiredComplete) return;
     setIsSubmitting(true);
+    setErrorMessage(null);
+    setUploadProgress(0);
+    setUploadStatus('Criando cadastro...');
 
-    // TODO: Aqui será integrado com o backend para enviar os arquivos
-    // Por enquanto, simula o envio e redireciona para o CadastroGR
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // 1. Criar o cadastro na fila
+      const createResponse = await filaApi.create({
+        tipo_cadastro: 'motorista',
+        dados: {
+          created_by: user?.name || 'Operador',
+          total_documentos: files.length,
+        },
+        origem: origem || undefined,
+        destino: destino || undefined,
+        localizacaoAtual: localizacaoAtual || undefined,
+        tipoMercadoria: tipoMercadoria === 'outros' ? tipoMercadoriaOutro : tipoMercadoria || undefined,
+      });
 
-    setSubmitted(true);
-    setIsSubmitting(false);
+      if (!createResponse.success || !createResponse.data) {
+        throw new Error(createResponse.error || 'Erro ao criar cadastro');
+      }
 
-    // Redireciona para a fila de cadastros após 2 segundos
-    setTimeout(() => {
-      navigate('/dashboard/cadastro-gr');
-    }, 2000);
+      const submissionId = createResponse.data.id;
+      setUploadStatus('Enviando documentos...');
+
+      // 2. Preparar arquivos para upload
+      const classifiedFiles = files.filter(f => f.type !== null);
+      const totalFiles = classifiedFiles.length;
+      let uploadedCount = 0;
+      let hasError = false;
+
+      // 3. Upload de cada arquivo individualmente com progresso
+      for (const uploadedFile of classifiedFiles) {
+        try {
+          // Mapear tipo para o tipo esperado pela API
+          const apiType = uploadedFile.type as ApiDocType;
+
+          setUploadStatus(`Enviando ${uploadedFile.file.name}...`);
+
+          // Atualizar status do arquivo para uploading
+          setFiles(prev => prev.map(f =>
+            f.id === uploadedFile.id
+              ? { ...f, uploadStatus: 'uploading' as const, uploadProgress: 0 }
+              : f
+          ));
+
+          await documentsApi.upload(
+            uploadedFile.file,
+            submissionId,
+            apiType,
+            (progress) => {
+              // Atualizar progresso individual do arquivo
+              setFiles(prev => prev.map(f =>
+                f.id === uploadedFile.id
+                  ? { ...f, uploadProgress: progress.percentage }
+                  : f
+              ));
+
+              // Calcular progresso total
+              const baseProgress = (uploadedCount / totalFiles) * 100;
+              const currentFileProgress = (progress.percentage / totalFiles);
+              setUploadProgress(Math.round(baseProgress + currentFileProgress));
+            }
+          );
+
+          // Marcar arquivo como enviado com sucesso
+          setFiles(prev => prev.map(f =>
+            f.id === uploadedFile.id
+              ? { ...f, uploadStatus: 'success' as const, uploadProgress: 100 }
+              : f
+          ));
+
+          uploadedCount++;
+          setUploadProgress(Math.round((uploadedCount / totalFiles) * 100));
+        } catch (error) {
+          hasError = true;
+          const errorMsg = error instanceof Error ? error.message : 'Erro no upload';
+
+          // Marcar arquivo com erro
+          setFiles(prev => prev.map(f =>
+            f.id === uploadedFile.id
+              ? { ...f, uploadStatus: 'error' as const, errorMessage: errorMsg }
+              : f
+          ));
+        }
+      }
+
+      if (hasError) {
+        setErrorMessage('Alguns arquivos falharam no envio. Você pode tentar novamente.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setUploadStatus('Finalizando...');
+      setUploadProgress(100);
+      setSubmitted(true);
+      setIsSubmitting(false);
+
+      // Redireciona para a fila de cadastros após 2 segundos
+      setTimeout(() => {
+        navigate('/dashboard/cadastro-gr');
+      }, 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao enviar cadastro';
+      setErrorMessage(errorMsg);
+      setIsSubmitting(false);
+      setUploadStatus('');
+    }
   };
 
   if (submitted) {
@@ -249,6 +362,82 @@ export function DashboardOperador() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Campos de Informação Adicional */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
+            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-benfica-blue" />
+              Informações da Operação
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Origem
+                </label>
+                <input
+                  type="text"
+                  value={origem}
+                  onChange={(e) => setOrigem(e.target.value)}
+                  placeholder="Cidade/Estado de origem"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Destino
+                </label>
+                <input
+                  type="text"
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  placeholder="Cidade/Estado de destino"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Localização Atual
+                </label>
+                <input
+                  type="text"
+                  value={localizacaoAtual}
+                  onChange={(e) => setLocalizacaoAtual(e.target.value)}
+                  placeholder="Localização atual do motorista"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Tipo de Mercadoria
+                </label>
+                <select
+                  value={tipoMercadoria}
+                  onChange={(e) => setTipoMercadoria(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
+                >
+                  <option value="" className="bg-slate-900">Selecione...</option>
+                  <option value="carga-seca" className="bg-slate-900">Carga Seca</option>
+                  <option value="refrigerada" className="bg-slate-900">Refrigerada</option>
+                  <option value="perigosa" className="bg-slate-900">Perigosa</option>
+                  <option value="fragil" className="bg-slate-900">Frágil</option>
+                  <option value="outros" className="bg-slate-900">Outros</option>
+                </select>
+
+                {tipoMercadoria === 'outros' && (
+                  <input
+                    type="text"
+                    value={tipoMercadoriaOutro}
+                    onChange={(e) => setTipoMercadoriaOutro(e.target.value)}
+                    placeholder="Especifique o tipo de mercadoria"
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors mt-2"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Área de Drop */}
           <div
             onDragOver={handleDragOver}
@@ -486,7 +675,7 @@ export function DashboardOperador() {
           </div>
 
           {/* Arquivos Classificados */}
-          {files.filter(f => f.type !== null).length > 0 && (
+          {files.filter(f => f.type !== null).length > 0 && !isSubmitting && (
             <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
               <h3 className="text-sm font-bold text-slate-400 mb-3">
                 Arquivos Prontos ({files.filter(f => f.type !== null).length})
@@ -499,17 +688,33 @@ export function DashboardOperador() {
 
                   return (
                     <div key={file.id} className="relative group">
-                      <div className={`flex items-center gap-2 px-2 py-1 rounded-lg bg-white/10 border ${colors.border}/30`}>
-                        <span className={`text-xs font-bold ${colors.text}`}>{label}</span>
+                      <div className={`flex items-center gap-2 px-2 py-1 rounded-lg bg-white/10 border ${
+                        file.uploadStatus === 'success'
+                          ? 'border-emerald-500/50'
+                          : file.uploadStatus === 'error'
+                          ? 'border-red-500/50'
+                          : `${colors.border}/30`
+                      }`}>
+                        {file.uploadStatus === 'success' && <Check className="w-3 h-3 text-emerald-400" />}
+                        {file.uploadStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
+                        <span className={`text-xs font-bold ${
+                          file.uploadStatus === 'success'
+                            ? 'text-emerald-400'
+                            : file.uploadStatus === 'error'
+                            ? 'text-red-400'
+                            : colors.text
+                        }`}>{label}</span>
                         <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{file.file.name}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(file.id)}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-2 h-2 text-white" />
-                      </button>
+                      {!isSubmitting && (
+                        <button
+                          type="button"
+                          onClick={() => removeFile(file.id)}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-2 h-2 text-white" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -518,7 +723,7 @@ export function DashboardOperador() {
           )}
 
           {/* Mensagem de Erro */}
-          {!allRequiredComplete && files.length > 0 && (
+          {!allRequiredComplete && files.length > 0 && !errorMessage && (
             <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-500/10 rounded-lg px-4 py-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>
@@ -527,6 +732,65 @@ export function DashboardOperador() {
                   : `Faltam ${requiredDocs.length - completedDocs.length} documentos obrigatórios`
                 }
               </span>
+            </div>
+          )}
+
+          {/* Erro de Upload */}
+          {errorMessage && (
+            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 rounded-lg px-4 py-2 border border-red-500/30">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="ml-auto p-1 hover:bg-white/10 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Progresso de Upload */}
+          {isSubmitting && (
+            <div className="bg-benfica-blue/10 border border-benfica-blue/30 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-benfica-blue animate-spin" />
+                  <span className="text-sm text-white font-medium">{uploadStatus}</span>
+                </div>
+                <span className="text-sm font-bold text-benfica-blue">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-benfica-blue to-blue-400 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              {/* Status individual dos arquivos */}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {files.filter(f => f.type !== null).map((file) => (
+                  <div
+                    key={file.id}
+                    className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                      file.uploadStatus === 'success'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : file.uploadStatus === 'error'
+                        ? 'bg-red-500/20 text-red-400'
+                        : file.uploadStatus === 'uploading'
+                        ? 'bg-benfica-blue/20 text-benfica-blue'
+                        : 'bg-slate-700/50 text-slate-400'
+                    }`}
+                  >
+                    {file.uploadStatus === 'uploading' && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {file.uploadStatus === 'success' && <Check className="w-3 h-3" />}
+                    {file.uploadStatus === 'error' && <X className="w-3 h-3" />}
+                    <span className="truncate max-w-[100px]">{file.file.name}</span>
+                    {file.uploadStatus === 'uploading' && file.uploadProgress !== undefined && (
+                      <span className="ml-1">{file.uploadProgress}%</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -540,11 +804,30 @@ export function DashboardOperador() {
               }`}
           >
             {isSubmitting ? (
-              <><Clock className="w-6 h-6 animate-spin" /> Enviando...</>
+              <><Loader2 className="w-6 h-6 animate-spin" /> {uploadStatus || 'Enviando...'}</>
             ) : (
               <><Send className="w-6 h-6" /> Enviar Cadastro</>
             )}
           </button>
+
+          {/* Botão para Tentar Novamente (se houve erro) */}
+          {errorMessage && files.some(f => f.uploadStatus === 'error') && (
+            <button
+              type="button"
+              onClick={() => {
+                // Resetar status dos arquivos com erro para tentar novamente
+                setFiles(prev => prev.map(f =>
+                  f.uploadStatus === 'error'
+                    ? { ...f, uploadStatus: 'pending', uploadProgress: undefined, errorMessage: undefined }
+                    : f
+                ));
+                setErrorMessage(null);
+              }}
+              className="w-full py-3 rounded-xl border-2 border-amber-500/50 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors"
+            >
+              Tentar Novamente (arquivos com erro)
+            </button>
+          )}
         </form>
       </div>
     </Container>

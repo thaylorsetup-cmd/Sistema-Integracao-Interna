@@ -1,0 +1,85 @@
+# =====================================================
+# BBT CONNECT - DOCKER COMPOSE
+# Ambiente completo para desenvolvimento e producao
+# =====================================================
+
+version: '3.8'
+
+services:
+  # ======== BACKEND ========
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bbt-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - BASE_URL=http://localhost:3001
+      - CORS_ORIGIN=http://localhost:5173
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=bbt_connect
+      - POSTGRES_USER=bbt_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bbt_secure_password}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change_this_in_production_32chars}
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=52428800
+      - LOG_LEVEL=info
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX=100
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bbt-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ======== POSTGRESQL ========
+  postgres:
+    image: postgres:15-alpine
+    container_name: bbt-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=bbt_connect
+      - POSTGRES_USER=bbt_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bbt_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Executar migracoes automaticamente
+      - ./src/db/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bbt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbt_user -d bbt_connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# ======== VOLUMES ========
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
+
+# ======== NETWORKS ========
+networks:
+  bbt-network:
+    driver: bridge

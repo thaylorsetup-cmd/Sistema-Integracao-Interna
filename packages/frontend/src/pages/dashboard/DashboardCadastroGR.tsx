@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Container } from '@/components/layout';
 import {
     FileSearch,
@@ -8,25 +8,23 @@ import {
     AlertTriangle,
     Eye,
     User,
-    Truck,
     FileText,
-    MessageSquare,
-    ChevronRight,
     X,
-    Phone,
-    MapPin,
-    Package,
-    DollarSign,
     Calendar,
     Image as ImageIcon,
     Download,
     Copy,
     Check,
     ExternalLink,
-    Shield,
-    CreditCard,
-    FileCheck
+    FileCheck,
+    Loader2,
+    RefreshCw,
+    Wifi,
+    WifiOff,
+    AlertCircle
 } from 'lucide-react';
+import { filaApi, documentsApi, type Submission as ApiSubmission, type Document as ApiDocument } from '@/services/api';
+import { useFilaSocket, type SubmissionNewEvent, type SubmissionUpdatedEvent } from '@/hooks/useSocket';
 
 // Tipos de documentos (igual ao DashboardOperador)
 const DOCUMENT_TYPES = [
@@ -60,11 +58,18 @@ interface DocumentFile {
     type: string;
     customDescription?: string;
     filename: string;
-    url: string; // URL para download
+    url: string;
+}
+
+interface Delay {
+    id: string;
+    motivo: string;
+    criado_em: string;
+    criado_por_nome?: string;
 }
 
 interface Submission {
-    id: number;
+    id: string;
     operador: string;
     dataEnvio: string;
     horaEnvio: string;
@@ -72,89 +77,75 @@ interface Submission {
     documentos: DocumentFile[];
     tempoEspera: string;
     prioridade: 'normal' | 'alta' | 'urgente';
+    delaysCount?: number;
+    delays?: Delay[];
 }
 
-// Mock data baseado no novo sistema de documentos
-const MOCK_SUBMISSIONS: Submission[] = [
-    {
-        id: 1,
-        operador: 'Thaylor Operacional',
-        dataEnvio: '14/01/2026',
-        horaEnvio: '15:05',
-        status: 'pendente',
-        tempoEspera: '5 min',
-        prioridade: 'urgente',
-        documentos: [
-            { id: '1', type: 'cnh', filename: 'cnh_joao_silva.pdf', url: '#' },
-            { id: '2', type: 'crlv', filename: 'crlv_cavalo_GOI2B34.jpg', url: '#' },
-            { id: '3', type: 'crlv', filename: 'crlv_carreta_TRK5678.jpg', url: '#' },
-            { id: '4', type: 'antt', filename: 'antt_veiculo.pdf', url: '#' },
-            { id: '5', type: 'endereco', filename: 'comprovante_residencia.pdf', url: '#' },
-            { id: '6', type: 'bancario', filename: 'dados_bancarios.pdf', url: '#' },
-            { id: '7', type: 'pamcard', filename: 'pamcard_consulta.png', url: '#' },
-            { id: '9', type: 'gr', filename: 'liberacao_gr.pdf', url: '#' },
-            { id: '10', type: 'rcv', filename: 'certificado_rcv.pdf', url: '#' },
-        ],
-    },
-    {
-        id: 2,
-        operador: 'Maria Operacional',
-        dataEnvio: '14/01/2026',
-        horaEnvio: '14:30',
-        status: 'pendente',
-        tempoEspera: '40 min',
-        prioridade: 'alta',
-        documentos: [
-            { id: '11', type: 'cnh', filename: 'cnh_pedro.jpg', url: '#' },
-            { id: '12', type: 'crlv', filename: 'crlv_LOG9E12.pdf', url: '#' },
-            { id: '13', type: 'antt', filename: 'antt.pdf', url: '#' },
-            { id: '14', type: 'endereco', filename: 'endereco.jpg', url: '#' },
-            { id: '15', type: 'bancario', filename: 'banco.pdf', url: '#' },
-            { id: '16', type: 'pamcard', filename: 'tag.png', url: '#' },
-            { id: '18', type: 'gr', filename: 'gr.pdf', url: '#' },
-            { id: '19', type: 'rcv', filename: 'rcv.pdf', url: '#' },
-            { id: '20', type: 'outros', customDescription: 'Ficha do rastreador', filename: 'rastreador.pdf', url: '#' },
-        ],
-    },
-    {
-        id: 3,
-        operador: 'Carlos Operacional',
-        dataEnvio: '14/01/2026',
-        horaEnvio: '13:15',
-        status: 'em_analise',
-        tempoEspera: '1h 50min',
-        prioridade: 'normal',
-        documentos: [
-            { id: '21', type: 'cnh', filename: 'cnh_roberto.pdf', url: '#' },
-            { id: '22', type: 'crlv', filename: 'crlv.pdf', url: '#' },
-            { id: '23', type: 'antt', filename: 'antt.pdf', url: '#' },
-            { id: '24', type: 'endereco', filename: 'endereco.pdf', url: '#' },
-            { id: '25', type: 'bancario', filename: 'banco.pdf', url: '#' },
-            { id: '26', type: 'pamcard', filename: 'pamcard.png', url: '#' },
-            { id: '28', type: 'gr', filename: 'gr.pdf', url: '#' },
-            { id: '29', type: 'rcv', filename: 'rcv.pdf', url: '#' },
-        ],
-    },
-    {
-        id: 4,
-        operador: 'Ana Operacional',
-        dataEnvio: '14/01/2026',
-        horaEnvio: '10:00',
-        status: 'aprovado',
-        tempoEspera: '—',
-        prioridade: 'normal',
-        documentos: [
-            { id: '30', type: 'cnh', filename: 'cnh.pdf', url: '#' },
-            { id: '31', type: 'crlv', filename: 'crlv.pdf', url: '#' },
-            { id: '32', type: 'antt', filename: 'antt.pdf', url: '#' },
-            { id: '33', type: 'endereco', filename: 'endereco.pdf', url: '#' },
-            { id: '34', type: 'bancario', filename: 'banco.pdf', url: '#' },
-            { id: '35', type: 'pamcard', filename: 'pamcard.png', url: '#' },
-            { id: '37', type: 'gr', filename: 'gr.pdf', url: '#' },
-            { id: '38', type: 'rcv', filename: 'rcv.pdf', url: '#' },
-        ],
-    },
-];
+// Mapear status da API para status local
+function mapApiStatus(status: string): Submission['status'] {
+    const statusMap: Record<string, Submission['status']> = {
+        'pending': 'pendente',
+        'in_analysis': 'em_analise',
+        'approved': 'aprovado',
+        'rejected': 'rejeitado',
+    };
+    return statusMap[status] || 'pendente';
+}
+
+// Mapear prioridade da API para prioridade local
+function mapApiPriority(priority: string): Submission['prioridade'] {
+    const priorityMap: Record<string, Submission['prioridade']> = {
+        'normal': 'normal',
+        'high': 'alta',
+        'urgent': 'urgente',
+    };
+    return priorityMap[priority] || 'normal';
+}
+
+// Calcular tempo de espera
+function calcularTempoEspera(createdAt: string): string {
+    const criacao = new Date(createdAt);
+    const agora = new Date();
+    const diffMs = agora.getTime() - criacao.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return 'Agora';
+    if (diffMin < 60) return `${diffMin} min`;
+
+    const diffHours = Math.floor(diffMin / 60);
+    const remainingMin = diffMin % 60;
+
+    if (diffHours < 24) {
+        return remainingMin > 0 ? `${diffHours}h ${remainingMin}min` : `${diffHours}h`;
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d`;
+}
+
+// Converter submission da API para o formato local
+function mapApiSubmission(apiSubmission: ApiSubmission): Submission {
+    const data = new Date(apiSubmission.created_at);
+
+    return {
+        id: apiSubmission.id,
+        operador: apiSubmission.dados?.created_by || 'Operador',
+        dataEnvio: data.toLocaleDateString('pt-BR'),
+        horaEnvio: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        status: mapApiStatus(apiSubmission.status),
+        documentos: (apiSubmission.documents || []).map((doc: ApiDocument) => ({
+            id: doc.id,
+            type: doc.tipo,
+            filename: doc.original_name,
+            url: `/api/documents/${doc.id}/download`,
+        })),
+        tempoEspera: ['approved', 'rejected'].includes(apiSubmission.status)
+            ? '—'
+            : calcularTempoEspera(apiSubmission.created_at),
+        prioridade: mapApiPriority(apiSubmission.dados?.prioridade || 'normal'),
+    };
+}
+
 
 // Componente de cópia com feedback
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -224,15 +215,38 @@ function DetailModal({
     onClose,
     onApprove,
     onReject,
+    onDelay,
     onStartAnalysis
 }: {
     submission: Submission;
     onClose: () => void;
     onApprove: () => void;
     onReject: () => void;
+    onDelay: () => void;
     onStartAnalysis: () => void;
 }) {
     const [downloadingAll, setDownloadingAll] = useState(false);
+    const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+    const [delays, setDelays] = useState<Delay[]>([]);
+    const [loadingDelays, setLoadingDelays] = useState(false);
+
+    // Carregar delays ao abrir modal
+    useEffect(() => {
+        const fetchDelays = async () => {
+            setLoadingDelays(true);
+            try {
+                const response = await filaApi.buscarDelays(submission.id);
+                if (response.success && response.data) {
+                    setDelays(response.data as Delay[]);
+                }
+            } catch (err) {
+                console.error('Erro ao buscar delays:', err);
+            } finally {
+                setLoadingDelays(false);
+            }
+        };
+        fetchDelays();
+    }, [submission.id]);
 
     // Agrupar documentos por tipo
     const groupedDocs = DOCUMENT_TYPES.map(type => ({
@@ -240,12 +254,38 @@ function DetailModal({
         files: submission.documentos.filter(d => d.type === type.id)
     })).filter(g => g.files.length > 0);
 
+    const handleDownloadFile = async (doc: DocumentFile) => {
+        try {
+            setDownloadingFile(doc.id);
+            const blob = await documentsApi.download(doc.id);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = doc.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            alert('Erro ao baixar arquivo');
+        } finally {
+            setDownloadingFile(null);
+        }
+    };
+
     const handleDownloadAll = async () => {
         setDownloadingAll(true);
-        // Simular download
-        await new Promise(r => setTimeout(r, 1500));
-        setDownloadingAll(false);
-        alert('Todos os documentos baixados! (simulação)');
+        try {
+            for (const doc of submission.documentos) {
+                await handleDownloadFile(doc);
+                // Pequeno delay entre downloads
+                await new Promise(r => setTimeout(r, 300));
+            }
+        } catch (error) {
+            alert('Erro ao baixar alguns arquivos');
+        } finally {
+            setDownloadingAll(false);
+        }
     };
 
     return (
@@ -353,18 +393,23 @@ function DetailModal({
                                                 </div>
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <button
-                                                        onClick={() => window.open(file.url, '_blank')}
+                                                        onClick={() => window.open(`/api/documents/${file.id}/view`, '_blank')}
                                                         className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                                         title="Visualizar"
                                                     >
                                                         <ExternalLink className="w-4 h-4 text-slate-400 hover:text-white" />
                                                     </button>
                                                     <button
-                                                        onClick={() => {/* download */ }}
-                                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                                        onClick={() => handleDownloadFile(file)}
+                                                        disabled={downloadingFile === file.id}
+                                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
                                                         title="Baixar"
                                                     >
-                                                        <Download className="w-4 h-4 text-slate-400 hover:text-benfica-blue" />
+                                                        {downloadingFile === file.id ? (
+                                                            <Loader2 className="w-4 h-4 text-benfica-blue animate-spin" />
+                                                        ) : (
+                                                            <Download className="w-4 h-4 text-slate-400 hover:text-benfica-blue" />
+                                                        )}
                                                     </button>
                                                 </div>
                                             </div>
@@ -374,6 +419,31 @@ function DetailModal({
                             );
                         })}
                     </div>
+
+                    {/* Seção de Atrasos */}
+                    {loadingDelays ? (
+                        <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 text-benfica-blue animate-spin" />
+                        </div>
+                    ) : delays.length > 0 && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                            <h4 className="font-bold text-amber-400 mb-3 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                Atrasos Registrados ({delays.length})
+                            </h4>
+                            <div className="space-y-2">
+                                {delays.map((delay) => (
+                                    <div key={delay.id} className="bg-slate-800/50 border-l-4 border-amber-500 pl-3 py-2 rounded-r-lg">
+                                        <p className="text-sm text-white">{delay.motivo}</p>
+                                        <p className="text-xs text-slate-400 mt-1">
+                                            {new Date(delay.criado_em).toLocaleString('pt-BR')}
+                                            {delay.criado_por_nome && ` • ${delay.criado_por_nome}`}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer de Ações Fixo */}
@@ -386,6 +456,13 @@ function DetailModal({
                             Iniciar Análise
                         </button>
                     )}
+                    <button
+                        onClick={onDelay}
+                        className="flex-1 py-3 bg-amber-500/10 text-amber-400 font-bold rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <AlertCircle className="w-4 h-4" />
+                        Adicionar Atraso
+                    </button>
                     <button
                         onClick={onReject}
                         className="flex-1 py-3 bg-red-500/10 text-red-400 font-bold rounded-xl border border-red-500/30 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2"
@@ -420,9 +497,17 @@ function SubmissionCard({
 }) {
     return (
         <div
-            className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer"
+            className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer relative"
             onClick={onView}
         >
+            {/* Badge de Atraso */}
+            {submission.delaysCount && submission.delaysCount > 0 && (
+                <div className="absolute -top-2 -right-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse shadow-lg">
+                    <Clock className="w-3 h-3" />
+                    {submission.delaysCount}
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -509,7 +594,7 @@ function KanbanColumn({
     icon: React.ElementType;
     color: string;
     submissions: Submission[];
-    onAction: (id: number, action: string) => void;
+    onAction: (id: string, action: string) => void;
 }) {
     const colorClasses: Record<string, string> = {
         amber: 'from-amber-500 to-orange-600',
@@ -554,35 +639,216 @@ function KanbanColumn({
 }
 
 export function DashboardCadastroGR() {
-    const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const handleAction = (id: number, action: string) => {
+    // Estados dos modais
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
+    const [rejectReason, setRejectReason] = useState('');
+    const [rejectCategory, setRejectCategory] = useState('');
+
+    const [showDelayModal, setShowDelayModal] = useState(false);
+    const [delaySubmissionId, setDelaySubmissionId] = useState<string | null>(null);
+    const [delayReason, setDelayReason] = useState('');
+
+    // Carregar dados da API
+    const loadSubmissions = useCallback(async (showRefreshing = false) => {
+        try {
+            if (showRefreshing) setIsRefreshing(true);
+            else setIsLoading(true);
+
+            const response = await filaApi.list();
+
+            if (response.success && response.data) {
+                const mappedSubmissions = response.data.map(mapApiSubmission);
+                setSubmissions(mappedSubmissions);
+                setError(null);
+            } else {
+                setError(response.error || 'Erro ao carregar dados');
+            }
+        } catch (err) {
+            setError('Erro de conexão com o servidor');
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
+    }, []);
+
+    // Carregar dados ao montar
+    useEffect(() => {
+        loadSubmissions();
+    }, [loadSubmissions]);
+
+    // WebSocket para atualizações em tempo real
+    const handleNewSubmission = useCallback((event: SubmissionNewEvent) => {
+        const newSubmission = mapApiSubmission(event.submission);
+        setSubmissions(prev => [newSubmission, ...prev]);
+    }, []);
+
+    const handleUpdatedSubmission = useCallback((event: SubmissionUpdatedEvent) => {
+        setSubmissions(prev => prev.map(sub =>
+            sub.id === event.submission.id
+                ? mapApiSubmission(event.submission)
+                : sub
+        ));
+
+        // Atualizar modal se estiver aberto
+        if (selectedSubmission?.id === event.submission.id) {
+            setSelectedSubmission(mapApiSubmission(event.submission));
+        }
+    }, [selectedSubmission]);
+
+    const { isConnected } = useFilaSocket({
+        onNew: handleNewSubmission,
+        onUpdated: handleUpdatedSubmission,
+    });
+
+    // Funções para modais de rejeição e atraso
+    const handleRejectClick = (submissionId: string) => {
+        setRejectSubmissionId(submissionId);
+        setShowRejectModal(true);
+    };
+
+    const handleRejectSubmit = async () => {
+        if (!rejectSubmissionId || !rejectReason || !rejectCategory) {
+            alert('Preencha todos os campos');
+            return;
+        }
+
+        try {
+            const response = await filaApi.rejeitar(rejectSubmissionId, rejectReason, rejectCategory);
+
+            if (response.success) {
+                setSubmissions(prev => prev.map(sub =>
+                    sub.id === rejectSubmissionId ? mapApiSubmission(response.data!) : sub
+                ));
+                setShowRejectModal(false);
+                setRejectReason('');
+                setRejectCategory('');
+                setRejectSubmissionId(null);
+                setSelectedSubmission(null);
+            } else {
+                alert(response.error || 'Erro ao rejeitar cadastro');
+            }
+        } catch (err) {
+            alert('Erro de conexão');
+        }
+    };
+
+    const handleAddDelayClick = (submissionId: string) => {
+        setDelaySubmissionId(submissionId);
+        setShowDelayModal(true);
+    };
+
+    const handleAddDelaySubmit = async () => {
+        if (!delaySubmissionId || !delayReason.trim()) {
+            alert('Informe o motivo do atraso');
+            return;
+        }
+
+        try {
+            const response = await filaApi.adicionarAtraso(delaySubmissionId, delayReason);
+
+            if (response.success) {
+                // Recarregar dados para pegar delays atualizados
+                await loadSubmissions(false);
+                setShowDelayModal(false);
+                setDelayReason('');
+                setDelaySubmissionId(null);
+                alert('Motivo de atraso adicionado. Operador será notificado.');
+            } else {
+                alert(response.error || 'Erro ao adicionar atraso');
+            }
+        } catch (err) {
+            alert('Erro de conexão');
+        }
+    };
+
+    // Ações
+    const handleAction = async (id: string, action: string) => {
         if (action === 'view') {
             const sub = submissions.find(s => s.id === id);
             if (sub) setSelectedSubmission(sub);
             return;
         }
 
-        setSubmissions(prev => prev.map(sub => {
-            if (sub.id !== id) return sub;
+        if (action === 'reject') {
+            handleRejectClick(id);
+            return;
+        }
+
+        if (action === 'delay') {
+            handleAddDelayClick(id);
+            return;
+        }
+
+        try {
+            let response;
+
             switch (action) {
                 case 'approve':
-                    return { ...sub, status: 'aprovado' as const, tempoEspera: '—' };
-                case 'reject':
-                    return { ...sub, status: 'rejeitado' as const, tempoEspera: '—' };
+                    response = await filaApi.aprovar(id);
+                    break;
                 case 'analyze':
-                    return { ...sub, status: 'em_analise' as const };
+                    response = await filaApi.analisar(id);
+                    break;
                 default:
-                    return sub;
+                    return;
             }
-        }));
-        setSelectedSubmission(null);
+
+            if (response.success && response.data) {
+                // Atualizar localmente (o WebSocket também atualizará)
+                setSubmissions(prev => prev.map(sub =>
+                    sub.id === id ? mapApiSubmission(response.data!) : sub
+                ));
+                setSelectedSubmission(null);
+            } else {
+                alert(response.error || 'Erro ao executar ação');
+            }
+        } catch (err) {
+            alert('Erro de conexão');
+        }
     };
 
     const pendentes = submissions.filter(s => s.status === 'pendente');
     const emAnalise = submissions.filter(s => s.status === 'em_analise');
     const concluidos = submissions.filter(s => s.status === 'aprovado' || s.status === 'rejeitado');
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <Container>
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                    <Loader2 className="w-10 h-10 text-benfica-blue animate-spin" />
+                    <p className="text-slate-400">Carregando fila de cadastros...</p>
+                </div>
+            </Container>
+        );
+    }
+
+    // Error state
+    if (error) {
+        return (
+            <Container>
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                    <div className="p-4 bg-red-500/20 rounded-full">
+                        <XCircle className="w-10 h-10 text-red-400" />
+                    </div>
+                    <p className="text-red-400 font-bold">{error}</p>
+                    <button
+                        onClick={() => loadSubmissions()}
+                        className="px-4 py-2 bg-benfica-blue text-white rounded-lg hover:bg-benfica-blue/80 transition-colors"
+                    >
+                        Tentar novamente
+                    </button>
+                </div>
+            </Container>
+        );
+    }
 
     return (
         <Container>
@@ -596,11 +862,28 @@ export function DashboardCadastroGR() {
                             </div>
                             Fila de Cadastros
                         </h1>
-                        <p className="mt-1 text-sm text-slate-400">
+                        <p className="mt-1 text-sm text-slate-400 flex items-center gap-2">
                             Visualize, baixe e aprove os documentos enviados
+                            {isConnected ? (
+                                <span className="flex items-center gap-1 text-emerald-400 text-xs">
+                                    <Wifi className="w-3 h-3" /> Ao vivo
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-1 text-amber-400 text-xs">
+                                    <WifiOff className="w-3 h-3" /> Offline
+                                </span>
+                            )}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => loadSubmissions(true)}
+                            disabled={isRefreshing}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors disabled:opacity-50"
+                            title="Atualizar"
+                        >
+                            <RefreshCw className={`w-4 h-4 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </button>
                         {pendentes.filter(p => p.prioridade === 'urgente').length > 0 && (
                             <div className="flex items-center gap-2 bg-red-500/20 text-red-400 px-3 py-2 rounded-lg border border-red-500/30 animate-pulse">
                                 <AlertTriangle className="w-4 h-4" />
@@ -697,6 +980,125 @@ export function DashboardCadastroGR() {
                 </div>
             </div>
 
+            {/* Modal de Rejeição */}
+            {showRejectModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+                    <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xl font-bold text-white">Rejeitar Cadastro</h3>
+                            <button onClick={() => setShowRejectModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                                <X className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Categoria da Rejeição
+                            </label>
+                            <select
+                                value={rejectCategory}
+                                onChange={(e) => setRejectCategory(e.target.value)}
+                                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none"
+                            >
+                                <option value="" className="bg-slate-900">Selecione...</option>
+                                <option value="documentos-incompletos" className="bg-slate-900">Documentos Incompletos</option>
+                                <option value="documentos-invalidos" className="bg-slate-900">Documentos Inválidos</option>
+                                <option value="informacoes-incorretas" className="bg-slate-900">Informações Incorretas</option>
+                                <option value="nao-atende-requisitos" className="bg-slate-900">Não Atende Requisitos</option>
+                                <option value="outro" className="bg-slate-900">Outro</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Motivo Detalhado
+                            </label>
+                            <textarea
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                rows={4}
+                                placeholder="Descreva o motivo da rejeição..."
+                                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-red-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setShowRejectModal(false)}
+                                className="flex-1 py-3 rounded-xl border border-white/20 text-white font-bold hover:bg-white/10 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleRejectSubmit}
+                                disabled={!rejectReason || !rejectCategory}
+                                className={`flex-1 py-3 rounded-xl font-bold transition-colors ${rejectReason && rejectCategory
+                                    ? 'bg-red-500 text-white hover:bg-red-600'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                Confirmar Rejeição
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Atraso */}
+            {showDelayModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDelayModal(false)} />
+                    <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5 text-amber-500" />
+                                Adicionar Motivo de Atraso
+                            </h3>
+                            <button onClick={() => setShowDelayModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                                <X className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-slate-400">
+                            O operador será notificado diretamente sobre o motivo do atraso.
+                        </p>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Motivo do Atraso
+                            </label>
+                            <textarea
+                                value={delayReason}
+                                onChange={(e) => setDelayReason(e.target.value)}
+                                rows={4}
+                                placeholder="Ex: Aguardando documento ANTT atualizado..."
+                                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setShowDelayModal(false)}
+                                className="flex-1 py-3 rounded-xl border border-white/20 text-white font-bold hover:bg-white/10 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleAddDelaySubmit}
+                                disabled={!delayReason.trim()}
+                                className={`flex-1 py-3 rounded-xl font-bold transition-colors ${delayReason.trim()
+                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                Adicionar Atraso
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal */}
             {selectedSubmission && (
                 <DetailModal
@@ -704,6 +1106,7 @@ export function DashboardCadastroGR() {
                     onClose={() => setSelectedSubmission(null)}
                     onApprove={() => handleAction(selectedSubmission.id, 'approve')}
                     onReject={() => handleAction(selectedSubmission.id, 'reject')}
+                    onDelay={() => handleAction(selectedSubmission.id, 'delay')}
                     onStartAnalysis={() => handleAction(selectedSubmission.id, 'analyze')}
                 />
             )}

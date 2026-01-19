@@ -1,109 +1,163 @@
 /**
- * Middleware de tratamento de erros
+ * Middleware de Tratamento de Erros
+ * Captura e formata erros de forma consistente
  */
-
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 import { ZodError } from 'zod';
+import { MulterError } from 'multer';
 
-export interface AppError extends Error {
-    statusCode?: number;
-    isOperational?: boolean;
+// Tipos de erro customizados
+export class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    message: string,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'AppError';
+    Error.captureStackTrace(this, this.constructor);
+  }
 }
 
-/**
- * Classe de erro customizada
- */
-export class HttpError extends Error implements AppError {
-    statusCode: number;
-    isOperational: boolean;
-
-    constructor(message: string, statusCode: number = 500) {
-        super(message);
-        this.statusCode = statusCode;
-        this.isOperational = true;
-        Error.captureStackTrace(this, this.constructor);
-    }
+export class NotFoundError extends AppError {
+  constructor(message = 'Recurso nao encontrado') {
+    super(404, message, 'NOT_FOUND');
+    this.name = 'NotFoundError';
+  }
 }
 
-/**
- * Erros comuns pré-definidos
- */
-export const Errors = {
-    NotFound: (resource: string = 'Recurso') =>
-        new HttpError(`${resource} não encontrado`, 404),
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Nao autorizado') {
+    super(401, message, 'UNAUTHORIZED');
+    this.name = 'UnauthorizedError';
+  }
+}
 
-    Unauthorized: (message: string = 'Não autorizado') =>
-        new HttpError(message, 401),
+export class ForbiddenError extends AppError {
+  constructor(message = 'Acesso negado') {
+    super(403, message, 'FORBIDDEN');
+    this.name = 'ForbiddenError';
+  }
+}
 
-    Forbidden: (message: string = 'Acesso negado') =>
-        new HttpError(message, 403),
+export class ValidationError extends AppError {
+  constructor(
+    message = 'Dados invalidos',
+    public details?: unknown
+  ) {
+    super(400, message, 'VALIDATION_ERROR');
+    this.name = 'ValidationError';
+  }
+}
 
-    BadRequest: (message: string = 'Requisição inválida') =>
-        new HttpError(message, 400),
+export class ConflictError extends AppError {
+  constructor(message = 'Conflito de dados') {
+    super(409, message, 'CONFLICT');
+    this.name = 'ConflictError';
+  }
+}
 
-    Conflict: (message: string = 'Conflito de dados') =>
-        new HttpError(message, 409),
+// Middleware de erro 404
+export function notFoundHandler(req: Request, res: Response): void {
+  res.status(404).json({
+    success: false,
+    error: 'Rota nao encontrada',
+    message: `Rota ${req.method} ${req.path} nao existe`,
+    path: req.path,
+  });
+}
 
-    InternalError: (message: string = 'Erro interno do servidor') =>
-        new HttpError(message, 500),
-};
-
-/**
- * Middleware handler de erros
- */
+// Middleware global de erros
 export function errorHandler(
-    err: AppError,
-    req: Request,
-    res: Response,
-    _next: NextFunction
+  err: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction
 ): void {
-    // Log do erro
-    logger.error({
-        message: err.message,
-        stack: err.stack,
-        path: req.path,
-        method: req.method,
-        body: req.body,
-        userId: req.userId,
-    });
+  // Log do erro
+  logger.error('Erro capturado:', {
+    name: err.name,
+    message: err.message,
+    stack: env.NODE_ENV === 'development' ? err.stack : undefined,
+    path: req.path,
+    method: req.method,
+  });
 
-    // Erro de validação Zod
-    if (err instanceof ZodError) {
-        res.status(400).json({
-            success: false,
-            error: 'Erro de validação',
-            details: err.errors.map(e => ({
-                field: e.path.join('.'),
-                message: e.message,
-            })),
-        });
-        return;
+  // Erro de validacao Zod
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      success: false,
+      error: 'Erro de validacao',
+      message: 'Dados invalidos',
+      details: err.errors.map((e) => ({
+        field: e.path.join('.'),
+        message: e.message,
+      })),
+    });
+    return;
+  }
+
+  // Erro do Multer (upload)
+  if (err instanceof MulterError) {
+    let message = 'Erro no upload de arquivo';
+    let statusCode = 400;
+
+    switch (err.code) {
+      case 'LIMIT_FILE_SIZE':
+        message = 'Arquivo muito grande. Tamanho maximo: 50MB';
+        break;
+      case 'LIMIT_FILE_COUNT':
+        message = 'Muitos arquivos. Maximo de 10 por vez';
+        break;
+      case 'LIMIT_UNEXPECTED_FILE':
+        message = `Campo de arquivo inesperado: ${err.field}`;
+        break;
+      default:
+        message = err.message;
     }
 
-    // Erro operacional (esperado)
-    if (err.isOperational) {
-        res.status(err.statusCode || 500).json({
-            success: false,
-            error: err.message,
-        });
-        return;
-    }
-
-    // Erro inesperado
-    res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor',
+    res.status(statusCode).json({
+      success: false,
+      error: 'Erro de upload',
+      message,
+      code: err.code,
     });
-}
+    return;
+  }
 
-/**
- * Wrapper para rotas async
- */
-export function asyncHandler(
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-) {
-    return (req: Request, res: Response, next: NextFunction) => {
-        Promise.resolve(fn(req, res, next)).catch(next);
-    };
+  // Erro customizado da aplicacao
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      success: false,
+      error: err.code || err.name,
+      message: err.message,
+      ...(err instanceof ValidationError && err.details
+        ? { details: err.details }
+        : {}),
+    });
+    return;
+  }
+
+  // Erro de sintaxe JSON
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({
+      success: false,
+      error: 'JSON invalido',
+      message: 'O corpo da requisicao contem JSON invalido',
+    });
+    return;
+  }
+
+  // Erro generico
+  res.status(500).json({
+    success: false,
+    error: 'Erro interno',
+    message:
+      env.NODE_ENV === 'production'
+        ? 'Ocorreu um erro interno. Tente novamente mais tarde.'
+        : err.message,
+    ...(env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
+  });
 }
