@@ -35,7 +35,8 @@
       "Bash(npm run migrate:*)",
       "Bash(test:*)",
       "Bash(docker --version:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Sistema de workflow aprimorado - Fase 1 \\(Backend + Frontend Parcial\\)\n\nBackend Completo:\n- Migração 006: Novos campos \\(origem, destino, localizacao_atual, tipo_mercadoria\\) + tabela delays\n- Role ''auditor'' para visualização de auditoria \\(Jordana\\)\n- Endpoints de delay: POST /fila/:id/adicionar-atraso, GET /fila/:id/delays\n- Endpoints de estatísticas: GET /dashboard/delay-stats, GET /dashboard/audit-metrics\n- Rejeição aprimorada com categoria e motivo detalhado\n- Socket.IO: Eventos em tempo real para delays com notificação direta ao operador\n- Serviços: adicionarAtraso\\(\\), buscarDelays\\(\\), rejeitarSubmission\\(\\) com categoria\n\nFrontend Implementado:\n- DashboardOperador: Campos de informação \\(origem, destino, localização, tipo mercadoria híbrido\\)\n- DashboardCadastroGR: Modais de rejeição com categoria + modal de atraso\n- DashboardCadastroGR: Badge de atraso nos cards do Kanban + exibição de delays no modal\n- AuthContext: Suporte ao role ''auditor''\n- API Services: Métodos adicionarAtraso\\(\\), buscarDelays\\(\\), rejeitar\\(\\) com categoria\n\nPendente \\(Próxima Fase\\):\n- Auditoria.tsx: Transformar em dashboard de métricas com KPIs e gráficos\n- DashboardGestao.tsx: Adicionar estatísticas de atrasos\n- TV Display: Indicadores de delay nas 4 variantes\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

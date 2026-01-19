@@ -31,8 +31,11 @@ import {
     ChevronRight,
     BarChart3,
     AlertCircle,
+    XCircle,
+    TrendingDown,
 } from 'lucide-react';
 import { getLogs, getUsuarios } from '@/services/mockDatabase';
+import { dashboardApi } from '@/services/api';
 import type { LogAuditoria, LogTipo, User as UserType } from '@/types';
 
 const tipoIcons: Record<LogTipo, React.ElementType> = {
@@ -73,6 +76,17 @@ interface SystemMetrics {
     memoryUsage: number;
 }
 
+// Métricas de workflow
+interface WorkflowMetrics {
+    totalSubmissions: number;
+    approvalRate: number;
+    averageProcessingTimeHours: number;
+    delayCount: number;
+    rejectionsByCategory: Record<string, number>;
+    topDelayReasons: { motivo: string; count: number }[];
+    mostActiveOperators: { id: string; nome: string; count: number }[];
+}
+
 export function Auditoria() {
     const { hasPermission } = useAuth();
     const isAdmin = useIsAdmin();
@@ -82,6 +96,21 @@ export function Auditoria() {
     const [showFilters, setShowFilters] = useState(false);
     const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Novos filtros para workflow
+    const [filterOperador, setFilterOperador] = useState('');
+    const [filterSubmissionId, setFilterSubmissionId] = useState('');
+
+    // Métricas de workflow
+    const [workflowMetrics, setWorkflowMetrics] = useState<WorkflowMetrics>({
+        totalSubmissions: 0,
+        approvalRate: 0,
+        averageProcessingTimeHours: 0,
+        delayCount: 0,
+        rejectionsByCategory: {},
+        topDelayReasons: [],
+        mostActiveOperators: [],
+    });
 
     // Simular métricas de sistema
     const [metrics, setMetrics] = useState<SystemMetrics>({
@@ -97,7 +126,27 @@ export function Auditoria() {
     const usuarios = getUsuarios();
     const logs = getLogs();
 
-    // Simular atualizações de métricas
+    // Buscar métricas de workflow do backend
+    useEffect(() => {
+        const fetchWorkflowMetrics = async () => {
+            try {
+                const response = await dashboardApi.auditMetrics({
+                    operador: filterOperador || undefined,
+                    submissionId: filterSubmissionId || undefined,
+                });
+
+                if (response.success && response.data) {
+                    setWorkflowMetrics(response.data as WorkflowMetrics);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar métricas de workflow:', error);
+            }
+        };
+
+        fetchWorkflowMetrics();
+    }, [filterOperador, filterSubmissionId]);
+
+    // Simular atualizações de métricas de sistema
     useEffect(() => {
         const interval = setInterval(() => {
             setMetrics(prev => ({
@@ -325,6 +374,48 @@ export function Auditoria() {
                 />
             </div>
 
+            {/* Métricas de Workflow (Cadastros) - Grid com KPIs */}
+            <div className="bg-gradient-to-br from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl border border-white/10">
+                        <BarChart3 className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Métricas de Cadastros</h2>
+                        <p className="text-sm text-slate-400">Estatísticas de aprovações, rejeições e atrasos</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <WorkflowMetricCard
+                        icon={FileText}
+                        label="Total de Cadastros"
+                        value={workflowMetrics.totalSubmissions.toString()}
+                        color="blue"
+                    />
+                    <WorkflowMetricCard
+                        icon={Check}
+                        label="Taxa de Aprovação"
+                        value={`${workflowMetrics.approvalRate.toFixed(1)}%`}
+                        color="emerald"
+                        trend={workflowMetrics.approvalRate >= 80 ? 'up' : 'down'}
+                    />
+                    <WorkflowMetricCard
+                        icon={Clock}
+                        label="Tempo Médio (h)"
+                        value={workflowMetrics.averageProcessingTimeHours.toFixed(1)}
+                        color="amber"
+                    />
+                    <WorkflowMetricCard
+                        icon={AlertCircle}
+                        label="Atrasos Registrados"
+                        value={workflowMetrics.delayCount.toString()}
+                        color="rose"
+                        pulse={workflowMetrics.delayCount > 0}
+                    />
+                </div>
+            </div>
+
             {/* Estatísticas e Gráficos */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                 {/* Stats Cards */}
@@ -375,33 +466,104 @@ export function Auditoria() {
                 </div>
             </div>
 
-            {/* Usuários mais ativos e Filtros */}
+            {/* Gráficos de Workflow - Rejeições e Atrasos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                {/* Rejeições por Categoria */}
+                <div className="bg-slate-950/60 backdrop-blur-xl rounded-2xl border border-white/10 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <XCircle className="w-5 h-5 text-red-400" />
+                        <h3 className="text-sm font-semibold text-white">Rejeições por Categoria</h3>
+                    </div>
+                    {Object.keys(workflowMetrics.rejectionsByCategory).length === 0 ? (
+                        <div className="flex items-center justify-center h-40 text-slate-500 text-sm">
+                            Nenhuma rejeição registrada
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {Object.entries(workflowMetrics.rejectionsByCategory)
+                                .sort(([, a], [, b]) => b - a)
+                                .map(([categoria, count]) => {
+                                    const maxCount = Math.max(...Object.values(workflowMetrics.rejectionsByCategory));
+                                    const percentage = (count / maxCount) * 100;
+                                    return (
+                                        <div key={categoria}>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-sm text-slate-300 capitalize">
+                                                    {categoria.replace(/-/g, ' ')}
+                                                </span>
+                                                <span className="text-sm font-mono text-slate-400">{count}</span>
+                                            </div>
+                                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-red-500 to-rose-500 transition-all duration-500"
+                                                    style={{ width: `${percentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Principais Motivos de Atraso */}
+                <div className="bg-slate-950/60 backdrop-blur-xl rounded-2xl border border-white/10 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <AlertCircle className="w-5 h-5 text-amber-400" />
+                        <h3 className="text-sm font-semibold text-white">Principais Motivos de Atraso</h3>
+                    </div>
+                    {workflowMetrics.topDelayReasons.length === 0 ? (
+                        <div className="flex items-center justify-center h-40 text-slate-500 text-sm">
+                            Nenhum atraso registrado
+                        </div>
+                    ) : (
+                        <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {workflowMetrics.topDelayReasons.map((reason, index) => (
+                                <div key={index} className="flex items-start gap-3 p-3 bg-slate-900/50 rounded-lg border border-amber-500/20">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">
+                                        {reason.count}
+                                    </div>
+                                    <p className="text-sm text-slate-300 flex-1 line-clamp-2">{reason.motivo}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Operadores mais ativos e Filtros */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-                {/* Top Usuários */}
+                {/* Top Operadores */}
                 <div className="bg-slate-950/60 backdrop-blur-xl rounded-2xl border border-white/10 p-4 lg:p-5">
                     <div className="flex items-center gap-2 mb-4">
                         <Award className="w-5 h-5 text-amber-400" />
-                        <h3 className="text-sm font-semibold text-white">Top Usuários Ativos</h3>
+                        <h3 className="text-sm font-semibold text-white">Top Operadores Ativos</h3>
                     </div>
-                    <div className="space-y-3">
-                        {topUsuarios.map((user, index) => (
-                            <div key={user.id} className="flex items-center gap-3">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-400' :
-                                        index === 1 ? 'bg-slate-400/20 text-slate-300' :
-                                            index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                                'bg-slate-700/50 text-slate-500'
-                                    }`}>
-                                    {index + 1}
+                    {workflowMetrics.mostActiveOperators.length === 0 ? (
+                        <div className="flex items-center justify-center h-32 text-slate-500 text-sm">
+                            Sem dados disponíveis
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {workflowMetrics.mostActiveOperators.slice(0, 5).map((operator, index) => (
+                                <div key={operator.id} className="flex items-center gap-3">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-400' :
+                                            index === 1 ? 'bg-slate-400/20 text-slate-300' :
+                                                index === 2 ? 'bg-orange-500/20 text-orange-400' :
+                                                    'bg-slate-700/50 text-slate-500'
+                                        }`}>
+                                        {index + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-white truncate">{operator.nome}</p>
+                                    </div>
+                                    <div className="text-xs text-slate-400 font-mono">
+                                        {operator.count}
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white truncate">{user.nome}</p>
-                                </div>
-                                <div className="text-xs text-slate-400 font-mono">
-                                    {user.count}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Filtros */}
@@ -435,41 +597,82 @@ export function Auditoria() {
 
                     {/* Filtros Expandidos */}
                     {showFilters && (
-                        <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
+                            {/* Filtros de Workflow */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-2">Tipo de Ação</label>
-                                <select
-                                    value={tipoFiltro}
-                                    onChange={(e) => setTipoFiltro(e.target.value as LogTipo | '')}
-                                    className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white focus:border-blue-500 outline-none transition-all"
-                                >
-                                    <option value="">Todos os tipos</option>
-                                    {tiposDisponiveis.map(tipo => (
-                                        <option key={tipo} value={tipo}>{tipo}</option>
-                                    ))}
-                                </select>
+                                <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-blue-400" />
+                                    Filtros de Cadastros
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Nome do Operador</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Jordana"
+                                            value={filterOperador}
+                                            onChange={(e) => setFilterOperador(e.target.value)}
+                                            className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">ID do Cadastro</label>
+                                        <input
+                                            type="text"
+                                            placeholder="UUID do cadastro"
+                                            value={filterSubmissionId}
+                                            onChange={(e) => setFilterSubmissionId(e.target.value)}
+                                            className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Filtros de Auditoria */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-2">Módulo</label>
-                                <input
-                                    type="text"
-                                    placeholder="Ex: Autenticação"
-                                    value={moduloFiltro}
-                                    onChange={(e) => setModuloFiltro(e.target.value)}
-                                    className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all"
-                                />
-                            </div>
-                            <div className="flex items-end">
-                                <button
-                                    onClick={() => {
-                                        setTipoFiltro('');
-                                        setModuloFiltro('');
-                                        setSearchTerm('');
-                                    }}
-                                    className="w-full sm:w-auto px-4 py-2 text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
-                                >
-                                    Limpar Filtros
-                                </button>
+                                <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-purple-400" />
+                                    Filtros de Auditoria
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Tipo de Ação</label>
+                                        <select
+                                            value={tipoFiltro}
+                                            onChange={(e) => setTipoFiltro(e.target.value as LogTipo | '')}
+                                            className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white focus:border-blue-500 outline-none transition-all"
+                                        >
+                                            <option value="">Todos os tipos</option>
+                                            {tiposDisponiveis.map(tipo => (
+                                                <option key={tipo} value={tipo}>{tipo}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Módulo</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Autenticação"
+                                            value={moduloFiltro}
+                                            onChange={(e) => setModuloFiltro(e.target.value)}
+                                            className="w-full px-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <button
+                                            onClick={() => {
+                                                setTipoFiltro('');
+                                                setModuloFiltro('');
+                                                setSearchTerm('');
+                                                setFilterOperador('');
+                                                setFilterSubmissionId('');
+                                            }}
+                                            className="w-full sm:w-auto px-4 py-2 text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                                        >
+                                            Limpar Todos os Filtros
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -599,6 +802,46 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType
                     <p className="text-xs lg:text-sm text-slate-400">{label}</p>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function WorkflowMetricCard({
+    icon: Icon,
+    label,
+    value,
+    color,
+    trend,
+    pulse
+}: {
+    icon: React.ElementType;
+    label: string;
+    value: string;
+    color: string;
+    trend?: 'up' | 'down';
+    pulse?: boolean;
+}) {
+    const colorClasses = {
+        blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        amber: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        rose: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    }[color] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+
+    return (
+        <div className={`bg-slate-900/50 backdrop-blur-xl rounded-xl border ${colorClasses} p-4`}>
+            <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 rounded-lg ${colorClasses} ${pulse ? 'animate-pulse' : ''}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                {trend && (
+                    <div className={`flex items-center gap-1 text-xs font-medium ${trend === 'up' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    </div>
+                )}
+            </div>
+            <p className="text-2xl font-bold text-white mb-1">{value}</p>
+            <p className="text-xs text-slate-400">{label}</p>
         </div>
     );
 }

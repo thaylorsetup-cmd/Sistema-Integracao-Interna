@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout';
-import { DollarSign, TrendingUp, Activity, Wallet, ArrowUpRight, ArrowDownRight, BarChart3, GripVertical } from 'lucide-react';
+import { DollarSign, TrendingUp, Activity, Wallet, ArrowUpRight, ArrowDownRight, BarChart3, GripVertical, AlertCircle, Clock } from 'lucide-react';
+import { dashboardApi } from '@/services/api';
 
 interface KpiData {
   id: string;
@@ -13,6 +14,13 @@ interface KpiData {
   color: 'emerald' | 'blue' | 'purple' | 'red';
   subtitle?: string;
   route: string;
+}
+
+interface DelayStats {
+  totalDelays: number;
+  submissionsWithDelays: number;
+  averageDelaysPerSubmission: number;
+  topDelayReasons: { motivo: string; count: number }[];
 }
 
 const initialKpis: KpiData[] = [
@@ -180,6 +188,34 @@ export function DashboardGestao() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // Delay statistics
+  const [delayStats, setDelayStats] = useState<DelayStats>({
+    totalDelays: 0,
+    submissionsWithDelays: 0,
+    averageDelaysPerSubmission: 0,
+    topDelayReasons: [],
+  });
+
+  // Fetch delay statistics
+  useEffect(() => {
+    const fetchDelayStats = async () => {
+      try {
+        const response = await dashboardApi.delayStats();
+        if (response.success && response.data) {
+          setDelayStats(response.data as DelayStats);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas de atrasos:', error);
+      }
+    };
+
+    fetchDelayStats();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchDelayStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
@@ -262,6 +298,96 @@ export function DashboardGestao() {
                 onViewDetails={handleViewDetails}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Estatísticas de Atrasos - KPI Card */}
+        <div className="bg-gradient-to-br from-amber-900/20 via-amber-800/10 to-amber-900/20 backdrop-blur-xl rounded-2xl border border-amber-500/20 overflow-hidden">
+          <div className="p-6 bg-amber-900/20 border-b border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-amber-500 to-amber-700 rounded-xl shadow-lg shadow-amber-500/30 border border-white/20">
+                <AlertCircle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Estatísticas de Atrasos</h3>
+                <p className="text-sm text-amber-300/70">Monitoramento de cadastros com delays</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-300/70 uppercase tracking-wider">Cadastros com Atraso</span>
+                </div>
+                <p className="text-3xl font-black text-white">{delayStats.submissionsWithDelays}</p>
+                <p className="text-xs text-slate-400 mt-1">{delayStats.totalDelays} atrasos no total</p>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-300/70 uppercase tracking-wider">Média por Cadastro</span>
+                </div>
+                <p className="text-3xl font-black text-white">{delayStats.averageDelaysPerSubmission.toFixed(1)}</p>
+                <p className="text-xs text-slate-400 mt-1">atrasos em média</p>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-300/70 uppercase tracking-wider">Status</span>
+                </div>
+                <p className="text-3xl font-black text-white">
+                  {delayStats.submissionsWithDelays > 0 ? (
+                    <span className="text-amber-400">⚠</span>
+                  ) : (
+                    <span className="text-emerald-400">✓</span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {delayStats.submissionsWithDelays > 0 ? 'Atenção necessária' : 'Tudo em ordem'}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+                Principais Motivos de Atraso
+              </h4>
+              {delayStats.topDelayReasons.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-slate-500 text-sm">
+                  <div className="text-center">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-2 text-emerald-500/50" />
+                    <p>Nenhum atraso registrado</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {delayStats.topDelayReasons.map((reason, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-amber-500/10 hover:bg-white/10 transition-all"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold border border-amber-500/30">
+                          {index + 1}
+                        </div>
+                        <p className="text-sm text-white truncate flex-1">{reason.motivo}</p>
+                      </div>
+                      <div className="flex-shrink-0 ml-3">
+                        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          {reason.count} vez{reason.count > 1 ? 'es' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

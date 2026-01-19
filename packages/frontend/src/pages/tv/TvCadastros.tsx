@@ -25,12 +25,13 @@ interface CadastroItem {
     status: 'pendente' | 'em_analise' | 'aprovado';
     tempoEspera: string;
     prioridade: 'normal' | 'urgente';
+    delaysCount?: number;
 }
 
 const MOCK_CADASTROS: CadastroItem[] = [
-    { id: '1', motorista: 'João Silva', placaCavalo: 'GOI-2B34', placaCarreta: 'ABC-1234', origem: 'Goiânia', destino: 'São Paulo', documentos: 5, status: 'pendente', tempoEspera: '15min', prioridade: 'urgente' },
+    { id: '1', motorista: 'João Silva', placaCavalo: 'GOI-2B34', placaCarreta: 'ABC-1234', origem: 'Goiânia', destino: 'São Paulo', documentos: 5, status: 'pendente', tempoEspera: '15min', prioridade: 'urgente', delaysCount: 2 },
     { id: '2', motorista: 'Carlos Oliveira', placaCavalo: 'LOG-9E12', placaCarreta: 'DEF-5678', origem: 'Goiânia', destino: 'Brasília', documentos: 4, status: 'pendente', tempoEspera: '32min', prioridade: 'normal' },
-    { id: '3', motorista: 'Pedro Santos', placaCavalo: 'FRT-7F89', placaCarreta: 'GHI-9012', origem: 'Goiânia', destino: 'Cuiabá', documentos: 6, status: 'em_analise', tempoEspera: '45min', prioridade: 'normal' },
+    { id: '3', motorista: 'Pedro Santos', placaCavalo: 'FRT-7F89', placaCarreta: 'GHI-9012', origem: 'Goiânia', destino: 'Cuiabá', documentos: 6, status: 'em_analise', tempoEspera: '45min', prioridade: 'normal', delaysCount: 1 },
     { id: '4', motorista: 'André Costa', placaCavalo: 'CAR-3A56', placaCarreta: 'JKL-3456', origem: 'Goiânia', destino: 'Belo Horizonte', documentos: 5, status: 'pendente', tempoEspera: '8min', prioridade: 'urgente' },
     { id: '5', motorista: 'Lucas Ferreira', placaCavalo: 'TRN-5F67', placaCarreta: 'MNO-7890', origem: 'Goiânia', destino: 'Uberlândia', documentos: 4, status: 'em_analise', tempoEspera: '1h 15min', prioridade: 'normal' },
     { id: '6', motorista: 'Marcos Souza', placaCavalo: 'BEN-8H90', placaCarreta: 'PQR-1234', origem: 'Goiânia', destino: 'Campo Grande', documentos: 5, status: 'aprovado', tempoEspera: '—', prioridade: 'normal' },
@@ -45,7 +46,15 @@ function CadastroCard({ cadastro }: { cadastro: CadastroItem }) {
     const status = statusConfig[cadastro.status];
 
     return (
-        <div className={`bg-slate-950/60 backdrop-blur-xl rounded-xl p-4 border ${cadastro.prioridade === 'urgente' ? 'border-red-500/50 animate-pulse' : 'border-white/10'}`}>
+        <div className={`relative bg-slate-950/60 backdrop-blur-xl rounded-xl p-4 border ${cadastro.prioridade === 'urgente' ? 'border-red-500/50 animate-pulse' : 'border-white/10'}`}>
+            {/* Delay Badge - Positioned absolutely in top-right corner */}
+            {cadastro.delaysCount && cadastro.delaysCount > 0 && (
+                <div className="absolute -top-2 -right-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse shadow-lg border-2 border-slate-950 z-10">
+                    <ClockIcon className="w-3 h-3" />
+                    {cadastro.delaysCount} ATRASO{cadastro.delaysCount > 1 ? 'S' : ''}
+                </div>
+            )}
+
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-benfica-blue/20 rounded-lg flex items-center justify-center">
@@ -94,6 +103,8 @@ export function TvCadastros() {
     const pendentes = cadastros.filter(c => c.status === 'pendente');
     const emAnalise = cadastros.filter(c => c.status === 'em_analise');
     const aprovados = cadastros.filter(c => c.status === 'aprovado');
+    const comAtrasos = cadastros.filter(c => c.delaysCount && c.delaysCount > 0).length;
+    const totalAtrasos = cadastros.reduce((sum, c) => sum + (c.delaysCount || 0), 0);
 
     return (
         <div className="relative min-h-screen w-full overflow-hidden bg-slate-950 text-white font-sans">
@@ -148,6 +159,16 @@ export function TvCadastros() {
                                     <span className="text-2xl font-black text-emerald-400">{aprovados.length}</span>
                                     <span className="text-xs text-emerald-400/70 ml-1">aprovados</span>
                                 </div>
+                                {/* Delay Counter - New */}
+                                {comAtrasos > 0 && (
+                                    <div className="bg-amber-500/30 px-4 py-2 rounded-lg border border-amber-500/50 animate-pulse">
+                                        <div className="flex items-center gap-1">
+                                            <ClockIcon className="w-4 h-4 text-amber-300" />
+                                            <span className="text-2xl font-black text-amber-300">{totalAtrasos}</span>
+                                        </div>
+                                        <span className="text-xs text-amber-300/70">atraso{totalAtrasos > 1 ? 's' : ''}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="text-right bg-slate-900/50 backdrop-blur-xl rounded-lg px-4 py-2 border border-white/10">

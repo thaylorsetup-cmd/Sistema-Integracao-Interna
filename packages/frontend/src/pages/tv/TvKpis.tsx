@@ -180,9 +180,11 @@ export function TvKpis() {
                             color="red"
                         />
                         <KpiCard
-                            icon={Package}
-                            label="Em Trânsito"
-                            value="18"
+                            icon={Clock}
+                            label="Cadastros com Atraso"
+                            value="3"
+                            change="2 atrasos"
+                            changeType="neutral"
                             color="amber"
                         />
                     </div>

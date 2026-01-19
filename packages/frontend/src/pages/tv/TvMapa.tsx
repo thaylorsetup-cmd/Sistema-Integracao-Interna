@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BBTMatrixMap } from '@/components/dashboard';
 import { VideoBackground } from '@/components/ui';
-import { Truck, Clock, Sparkles, ArrowLeft } from 'lucide-react';
+import { Truck, Clock, Sparkles, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export function TvMapa() {
     const navigate = useNavigate();
@@ -59,6 +59,12 @@ export function TvMapa() {
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </span>
                             <span className="text-emerald-400 text-sm font-bold">LIVE</span>
+                        </div>
+
+                        {/* Delay Indicator */}
+                        <div className="flex items-center gap-2 bg-amber-500/20 px-3 py-1.5 rounded-full border border-amber-500/30 animate-pulse">
+                            <AlertCircle className="h-4 w-4 text-amber-400" />
+                            <span className="text-amber-400 text-sm font-bold">3 ATRASOS</span>
                         </div>
 
                         <div className="text-right bg-slate-900/50 backdrop-blur-xl rounded-lg px-4 py-2 border border-white/10">
