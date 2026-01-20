@@ -94,3 +94,9 @@ export type { GlassCardProps, GlassPanelProps, AnimatedBackgroundProps, StatusIn
 
 // Video/SVG Animated Background
 export { AnimatedBackground as SVGAnimatedBackground, VideoBackground, LightVideoBackground } from './AnimatedBackground';
+
+// Help
+export { HelpButton } from './HelpButton';
+export type { HelpButtonProps } from './HelpButton';
+export { HelpTicketModal } from './HelpTicketModal';
+export type { HelpTicketModalProps } from './HelpTicketModal';

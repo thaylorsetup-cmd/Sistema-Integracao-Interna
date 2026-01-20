@@ -473,4 +473,34 @@ export const usersApi = {
   },
 };
 
+// =====================================================
+// TICKETS API (Suporte)
+// =====================================================
+
+export interface TicketData {
+  titulo: string;
+  categoria: 'bug' | 'duvida' | 'sugestao' | 'outro';
+  descricao: string;
+}
+
+export interface Ticket extends TicketData {
+  id: string;
+  status: 'aberto' | 'em_andamento' | 'resolvido';
+  created_at: string;
+}
+
+export const ticketApi = {
+  // Criar ticket de suporte
+  create: async (data: TicketData) => {
+    const response = await apiClient.post<ApiResponse<Ticket>>('/tickets', data);
+    return response.data;
+  },
+
+  // Listar tickets
+  list: async () => {
+    const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets');
+    return response.data;
+  },
+};
+
 export default apiClient;

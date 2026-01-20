@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
-import { VideoBackground } from '@/components/ui';
+import { VideoBackground, HelpButton } from '@/components/ui';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -34,6 +34,10 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
         </div>
       </div>
+
+      {/* Botão de Ajuda Flutuante */}
+      <HelpButton />
     </div>
   );
 }
+

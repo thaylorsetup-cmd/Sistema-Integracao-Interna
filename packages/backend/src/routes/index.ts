@@ -8,6 +8,7 @@ import usersRoutes from './users.routes.js';
 import filaRoutes from './fila.routes.js';
 import documentsRoutes from './documents.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import ticketRoutes from './ticket.routes.js';
 
 const router = Router();
 
@@ -27,5 +28,6 @@ router.use('/users', usersRoutes);
 router.use('/fila', filaRoutes);
 router.use('/documents', documentsRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/tickets', ticketRoutes);
 
 export default router;
