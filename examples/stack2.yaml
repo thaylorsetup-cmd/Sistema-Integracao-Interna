@@ -1,0 +1,40 @@
+exemplo da stack do site do felipe 
+
+version: '3.7'
+
+services:
+  apache-php:
+    image: php-apache-tesseract:latest
+    environment:
+      TZ: America/Sao_Paulo
+      WEB_DOCUMENT_ROOT: /laravel_app/public
+    volumes:
+      - laravel_app:/laravel_app
+      - apache_logs:/var/log/apache2
+    networks:
+      - network_public
+    command: /entrypoint supervisord
+    deploy:
+      replicas: 1
+      labels:
+        traefik.enable: "true"
+        traefik.docker.network: network_public
+        traefik.http.routers.laravel.rule: "Host(`app.bbttransportes.com.br`)"
+        traefik.http.routers.laravel.entrypoints: websecure
+        traefik.http.routers.laravel.tls: "true"
+        traefik.http.routers.laravel.tls.certresolver: letsencryptresolver
+        traefik.http.routers.laravel.service: laravel
+        traefik.http.services.laravel.loadbalancer.server.port: "80"
+        traefik.http.services.laravel.loadbalancer.passHostHeader: "true"
+        traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto: https
+        traefik.http.routers.laravel.middlewares: sslheader@docker
+
+volumes:
+  laravel_app:
+    external: true
+  apache_logs:
+    external: true
+
+networks:
+  network_public:
+    external: true

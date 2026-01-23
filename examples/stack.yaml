@@ -1,0 +1,147 @@
+version: '3.7'
+
+networks:
+  network_public:
+    external: true
+
+services:
+  db_prepare:
+    image: chatwoot/chatwoot:v4.7.0
+    command: /bin/sh -c "bundle exec rails db:chatwoot_prepare"
+    environment:
+      SECRET_KEY_BASE:       543218bb7ef6402f6a8bcf5d3be12345
+      REDIS_URL:             redis://redis:6379
+      POSTGRES_HOST:         postgres
+      POSTGRES_USERNAME:     postgres
+      POSTGRES_PASSWORD:     Mfcd62!!Mfcd62!!
+      POSTGRES_DATABASE:     chatwoot_n
+      RAILS_ENV:             production
+      NODE_ENV:              production
+      DEFAULT_URL_HOST:      chat.bbttransportes.com.br
+      DEFAULT_URL_PROTOCOL:  https
+      FRONTEND_URL:          https://chat.bbttransportes.com.br
+      ACTION_MAILER_URL_HOST: chat.bbttransportes.com.br
+    volumes:
+      - chatwoot_n_data:/app/storage
+      - chatwoot_n_public:/app/public
+    networks:
+      - network_public
+    deploy:
+      replicas: 0
+
+  rails:
+    image: chatwoot/chatwoot:v4.7.0
+    depends_on:
+      - db_prepare
+    command: bundle exec rails s -p 3000 -b 0.0.0.0
+    environment:
+      SECRET_KEY_BASE:           543218bb7ef6402f6a8bcf5d3be12345
+      FRONTEND_URL:              https://chat.bbttransportes.com.br
+      DEFAULT_URL_HOST:          chat.bbttransportes.com.br
+      DEFAULT_URL_PROTOCOL:      https
+      DEFAULT_LOCALE:            pt_BR
+      FORCE_SSL:                 "true"
+      ENABLE_ACCOUNT_SIGNUP:     "false"
+      REDIS_URL:                 redis://redis:6379
+      POSTGRES_HOST:             postgres
+      POSTGRES_USERNAME:         postgres
+      POSTGRES_PASSWORD:         Mfcd62!!Mfcd62!!
+      POSTGRES_DATABASE:         chatwoot_n
+      ACTIVE_STORAGE_SERVICE:    local
+      RAILS_LOG_TO_STDOUT:       "true"
+      NODE_ENV:                  production
+      RAILS_ENV:                 production
+      INSTALLATION_ENV:          docker
+      USE_INBOX_AVATAR_FOR_BOT:  "true"
+      ACTION_MAILER_URL_HOST:    chat.bbttransportes.com.br
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: tl4wZweXrw1gNNFFwgVtKibTy6ad0a5s
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: HMLRvRsXFTs3GXjqeSsian6UP15WbSm7
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: XQ5SeJHag8Yg9urtGluyXNKQ8rh9P9sQ
+
+      # Configuração de email (Gmail)
+      MAILER_SENDER_EMAIL:       Chatwoot <chat.bbttransportes@gmail.com>
+      SMTP_DOMAIN:               gmail.com
+      SMTP_ADDRESS:              smtp.gmail.com
+      SMTP_PORT:                 "587"
+      SMTP_USERNAME:             chat.bbttransportes@gmail.com
+      SMTP_PASSWORD:             hsmdmlnfcstnvnua
+      SMTP_AUTHENTICATION:       login
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      SMTP_OPENSSL_VERIFY_MODE:  peer
+      SMTP_DELIVERY_METHOD:      smtp
+      MAILER_INBOUND_EMAIL_DOMAIN: gmail.com
+
+      # Configurações adicionais
+      SIDEKIQ_CONCURRENCY:       "10"
+      RACK_TIMEOUT_SERVICE_TIMEOUT: "0"
+      RAILS_MAX_THREADS:         "5"
+      WEB_CONCURRENCY:           "2"
+      ENABLE_RACK_ATTACK:        "false"
+      WEBHOOKS_TRIGGER_TIMEOUT:  "40"
+    volumes:
+      - chatwoot_n_data:/app/storage
+      - chatwoot_n_public:/app/public
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      labels:
+        traefik.enable:                                "true"
+        traefik.docker.network:                        network_public
+        traefik.http.routers.chatwoot.rule:            "Host(`chat.bbttransportes.com.br`)"
+        traefik.http.routers.chatwoot.entrypoints:     websecure
+        traefik.http.routers.chatwoot.tls:             "true"
+        traefik.http.routers.chatwoot.tls.certresolver: letsencryptresolver
+        traefik.http.routers.chatwoot.service:         chatwoot
+        traefik.http.services.chatwoot.loadbalancer.server.port: "3000"
+        traefik.http.services.chatwoot.loadbalancer.passHostHeader: "true"
+        traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto: https
+        traefik.http.routers.chatwoot.middlewares:     sslheader@docker
+
+  sidekiq:
+    image: chatwoot/chatwoot:v4.7.0
+    depends_on:
+      - db_prepare
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    environment:
+      SECRET_KEY_BASE:           543218bb7ef6402f6a8bcf5d3be12345
+      REDIS_URL:                 redis://redis:6379
+      POSTGRES_HOST:             postgres
+      POSTGRES_USERNAME:         postgres
+      POSTGRES_PASSWORD:         Mfcd62!!Mfcd62!!
+      POSTGRES_DATABASE:         chatwoot_n
+      RAILS_ENV:                 production
+      NODE_ENV:                  production
+      DEFAULT_URL_HOST:          chat.bbttransportes.com.br
+      DEFAULT_URL_PROTOCOL:      https
+      FRONTEND_URL:              https://chat.bbttransportes.com.br
+      ACTION_MAILER_URL_HOST:    chat.bbttransportes.com.br
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: tl4wZweXrw1gNNFFwgVtKibTy6ad0a5s
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: HMLRvRsXFTs3GXjqeSsian6UP15WbSm7
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: XQ5SeJHag8Yg9urtGluyXNKQ8rh9P9sQ
+      
+      # Configuração completa de email
+      MAILER_SENDER_EMAIL:       Chatwoot <chat.bbttransportes@gmail.com>
+      SMTP_DOMAIN:               gmail.com
+      SMTP_ADDRESS:              smtp.gmail.com
+      SMTP_PORT:                 "587"
+      SMTP_USERNAME:             chat.bbttransportes@gmail.com
+      SMTP_PASSWORD:             hsmdmlnfcstnvnua
+      SMTP_AUTHENTICATION:       login
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      SMTP_OPENSSL_VERIFY_MODE:  peer
+      SMTP_DELIVERY_METHOD:      smtp
+      MAILER_INBOUND_EMAIL_DOMAIN: gmail.com
+    volumes:
+      - chatwoot_n_data:/app/storage
+      - chatwoot_n_public:/app/public
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+
+volumes:
+  chatwoot_n_data:
+    external: true
+  chatwoot_n_public:
+    external: true

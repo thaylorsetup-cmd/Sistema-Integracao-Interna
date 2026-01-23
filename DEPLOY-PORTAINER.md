@@ -1,188 +1,290 @@
-# 🚀 Guia de Deploy - BBT Connect no Portainer
+# 🚀 BBT Connect - Guia Completo de Deploy
 
-## Domínio: https://control.bbttransportes.com.br
+> **Domínio**: https://control.bbttransportes.com.br  
+> **Data**: Janeiro 2026
 
 ---
 
-## 📋 Pré-requisitos no Servidor
+## 📋 Pré-Checklist
 
-### 1. Criar os volumes necessários no Portainer
+Antes de começar, confirme que você tem:
 
-Antes de fazer deploy da stack, crie os seguintes volumes:
+- [ ] Acesso ao Portainer
+- [ ] `network_public` já existe no Portainer
+- [ ] Traefik já está configurado e funcionando
+- [ ] Acesso SSH ao servidor (ou terminal via Portainer)
+- [ ] Git instalado no servidor
+
+---
+
+## 📁 Passo 1: Clonar o Repositório no Servidor
 
 ```bash
+# Conectar via SSH ao servidor
+ssh usuario@seu-servidor
+
+# Ir para pasta de projetos
+cd /opt  # ou onde você guarda seus projetos
+
+# Clonar o repositório
+git clone https://github.com/thaylorsetup-cmd/Sistema-Integracao-Interna.git bbt-connect
+
+# Entrar na pasta
+cd bbt-connect
+```
+
+---
+
+## 📦 Passo 2: Criar os Volumes no Docker
+
+Execute os comandos abaixo no servidor:
+
+```bash
+# Volumes para dados persistentes
 docker volume create bbt_postgres_data
 docker volume create bbt_uploads
 docker volume create bbt_logs
 docker volume create bbt_frontend_logs
+
+# Verificar se foram criados
+docker volume ls | grep bbt
 ```
 
-Ou via Portainer:
-1. Vá em **Volumes** → **Add volume**
-2. Crie cada um dos volumes acima
+**Resultado esperado:**
+```
+local     bbt_frontend_logs
+local     bbt_logs
+local     bbt_postgres_data
+local     bbt_uploads
+```
 
-### 2. Build das imagens (se não estiver usando registry)
+---
 
-No servidor, clone o repositório e faça o build:
+## 🏗️ Passo 3: Build das Imagens Docker
+
+Ainda no servidor, na pasta do projeto:
 
 ```bash
-git clone https://github.com/seu-usuario/bbt-connect.git
-cd bbt-connect
+cd /opt/bbt-connect  # ou onde você clonou
 
-# Build do frontend
-docker build -t bbt-connect-frontend:latest \
-  --build-arg VITE_API_URL=https://control.bbttransportes.com.br/api \
+# Build do Frontend (React + Nginx)
+docker build \
+  -t bbt-connect-frontend:latest \
+  --build-arg VITE_API_URL=/api \
   --build-arg VITE_WS_URL=wss://control.bbttransportes.com.br \
   ./packages/frontend
 
-# Build do backend
-docker build -t bbt-connect-backend:latest ./packages/backend
+# Build do Backend (Node.js API)
+docker build \
+  -t bbt-connect-backend:latest \
+  ./packages/backend
+
+# Verificar se as imagens foram criadas
+docker images | grep bbt-connect
+```
+
+**Resultado esperado:**
+```
+bbt-connect-frontend   latest   ...   ...   ...MB
+bbt-connect-backend    latest   ...   ...   ...MB
 ```
 
 ---
 
-## 🔧 Deploy no Portainer
+## ⚙️ Passo 4: Configurar Variáveis de Ambiente
 
-### Passo 1: Criar a Stack
+### Opção A: Variáveis no Portainer (Recomendado)
 
-1. Acesse o Portainer
+Ao criar a stack, adicione estas variáveis:
+
+| Variável | Valor | Obrigatório |
+|----------|-------|-------------|
+| `POSTGRES_PASSWORD` | `SuaSenhaSegura123!@#` | ✅ SIM |
+| `BETTER_AUTH_SECRET` | `chave_aleatoria_32_caracteres_minimo` | ✅ SIM |
+
+### Gerar senha segura:
+
+```bash
+# Gerar senha aleatória
+openssl rand -base64 32
+
+# Exemplo de resultado:
+# Ab3Cd5Ef7Gh9Ij1Kl3Mn5Op7Qr9St1Uv
+```
+
+---
+
+## 📤 Passo 5: Deploy no Portainer
+
+### 5.1 Acessar o Portainer
+1. Abra o Portainer no navegador
 2. Vá em **Stacks** → **Add stack**
-3. Nome: `bbt-connect`
-4. Cole o conteúdo do arquivo `stack.yaml`
 
-### Passo 2: Configurar variáveis de ambiente
+### 5.2 Configurar a Stack
+1. **Nome da stack**: `bbt-connect`
+2. **Web editor**: Cole o conteúdo do arquivo `stack.yaml`
 
-Na seção "Environment variables" adicione:
+### 5.3 Adicionar Variáveis de Ambiente
+Na seção **Environment variables**, clique em **Add environment variable** e adicione:
 
-| Variável | Valor | Descrição |
-|----------|-------|-----------|
-| `POSTGRES_PASSWORD` | `SuaSenhaForte123!@#` | Senha do banco PostgreSQL |
-| `BETTER_AUTH_SECRET` | `chave_32_caracteres_minimo` | Secret para autenticação |
+```
+POSTGRES_PASSWORD = SuaSenhaSegura123!@#
+BETTER_AUTH_SECRET = Ab3Cd5Ef7Gh9Ij1Kl3Mn5Op7Qr9St1Uv
+```
 
-### Passo 3: Deploy
-
+### 5.4 Deploy
 1. Clique em **Deploy the stack**
-2. Aguarde os containers subirem
-3. Verifique os logs de cada serviço
+2. Aguarde todos os containers ficarem verdes (running)
 
 ---
 
-## 🌐 Como vai funcionar
+## ✅ Passo 6: Verificar o Deploy
 
-### Estrutura de URLs
+### 6.1 Verificar containers
 
-| URL | Serviço | Descrição |
-|-----|---------|-----------|
-| `https://control.bbttransportes.com.br/` | Frontend | Página inicial (redireciona para /login) |
-| `https://control.bbttransportes.com.br/login` | Frontend | Tela de login |
-| `https://control.bbttransportes.com.br/dashboard/operador` | Frontend | Dashboard do operador |
-| `https://control.bbttransportes.com.br/dashboard/gestao` | Frontend | Dashboard de gestão |
-| `https://control.bbttransportes.com.br/dashboard/cadastro-gr` | Frontend | Fila de cadastros |
-| `https://control.bbttransportes.com.br/auditoria` | Frontend | Auditoria |
-| `https://control.bbttransportes.com.br/configuracoes` | Frontend | Configurações |
-| `https://control.bbttransportes.com.br/api/*` | Backend | API REST |
-| `https://control.bbttransportes.com.br/socket.io/*` | Backend | WebSocket |
+No Portainer, vá em **Containers** e confirme:
 
-### Roteamento Traefik
+| Container | Status | Porta |
+|-----------|--------|-------|
+| `bbt-connect_frontend_1` | Running | 80 |
+| `bbt-connect_backend_1` | Running | 3001 |
+| `bbt-connect_postgres_1` | Running | 5432 |
 
-```
-control.bbttransportes.com.br
-├── /api/*        → Backend (porta 3001)
-├── /socket.io/*  → Backend (WebSocket)
-└── /*            → Frontend (nginx, porta 80)
-```
+### 6.2 Verificar logs
 
----
+Clique em cada container → **Logs** para ver se não há erros.
 
-## 🔒 SSL/HTTPS
-
-O Traefik já está configurado para:
-- Gerar certificado SSL automaticamente via Let's Encrypt
-- Renovar certificados automaticamente
-- Redirecionar HTTP para HTTPS
-
----
-
-## ✅ Verificação pós-deploy
-
-### 1. Verificar se os containers estão rodando
+### 6.3 Testar URLs
 
 ```bash
-docker ps | grep bbt
-```
-
-### 2. Verificar logs
-
-```bash
-# Frontend
-docker logs bbt-connect_frontend_1
-
-# Backend
-docker logs bbt-connect_backend_1
-
-# PostgreSQL
-docker logs bbt-connect_postgres_1
-```
-
-### 3. Testar endpoints
-
-```bash
-# Health check do backend
+# Health check da API
 curl https://control.bbttransportes.com.br/api/health
 
-# Acessar o frontend
-curl -I https://control.bbttransportes.com.br/
+# Resposta esperada:
+# {"success":true,"message":"BBT Connect API is running",...}
 ```
+
+### 6.4 Acessar no navegador
+
+Abra: **https://control.bbttransportes.com.br**
+
+Você deve ver a tela de login.
 
 ---
 
-## 🐛 Troubleshooting
+## 👤 Passo 7: Criar Primeiro Usuário Admin
 
-### Problema: Frontend não carrega
+### 7.1 Acessar o container do backend
 
-1. Verifique logs do nginx: `docker logs bbt-connect_frontend_1`
-2. Confirme que o build foi feito com as variáveis corretas
+No Portainer:
+1. Vá em **Containers**
+2. Clique em `bbt-connect_backend_1`
+3. Clique em **Console** → **Connect**
 
-### Problema: API retorna erro 502
-
-1. Verifique se o backend está rodando
-2. Verifique logs: `docker logs bbt-connect_backend_1`
-3. Confirme conectividade com PostgreSQL
-
-### Problema: Banco não conecta
-
-1. Verifique se o PostgreSQL está healthy
-2. Confirme a senha nas variáveis de ambiente
-3. Verifique logs: `docker logs bbt-connect_postgres_1`
-
-### Problema: WebSocket não funciona
-
-1. Verifique se a rota `/socket.io` está no Traefik
-2. Confirme `VITE_WS_URL=wss://control.bbttransportes.com.br`
-
----
-
-## 📝 Primeiro acesso
-
-Após o deploy, você precisará criar o primeiro usuário admin.
-
-### Opção 1: Via seed (recomendado)
-
+Ou via SSH:
 ```bash
-docker exec -it bbt-connect_backend_1 node dist/db/seed.js
+docker exec -it bbt-connect_backend_1 sh
 ```
 
-### Opção 2: Diretamente no banco
+### 7.2 Executar seed (se disponível)
 
 ```bash
+node dist/db/seed.js
+```
+
+### 7.3 Ou criar usuário manualmente no banco
+
+```bash
+# Acessar o PostgreSQL
 docker exec -it bbt-connect_postgres_1 psql -U bbt_user -d bbt_connect
 ```
 
 ```sql
+-- Criar usuário admin
 INSERT INTO users (email, nome, role, ativo) 
 VALUES ('admin@bbttransportes.com.br', 'Administrador', 'admin', true);
+
+-- Verificar
+SELECT * FROM users;
+
+-- Sair
+\q
 ```
 
 ---
 
-**Desenvolvido para BBT Transportes** 🚛
+## 🔧 Troubleshooting
+
+### Problema: Containers não sobem
+
+```bash
+# Ver logs detalhados
+docker logs bbt-connect_backend_1 --tail 100
+docker logs bbt-connect_frontend_1 --tail 100
+docker logs bbt-connect_postgres_1 --tail 100
+```
+
+### Problema: Erro de conexão com banco
+
+1. Verificar se PostgreSQL está healthy
+2. Verificar variável `POSTGRES_PASSWORD`
+3. Testar conexão:
+```bash
+docker exec -it bbt-connect_postgres_1 pg_isready -U bbt_user -d bbt_connect
+```
+
+### Problema: Frontend não carrega
+
+1. Verificar logs do nginx
+2. Confirmar que o build foi feito corretamente
+3. Acessar `https://control.bbttransportes.com.br/health`
+
+### Problema: API retorna 502
+
+1. Backend pode não ter iniciado ainda (aguardar)
+2. Verificar se healthcheck passou
+3. Ver logs do backend
+
+### Problema: SSL não funciona
+
+1. Verificar se Traefik está rodando
+2. Confirmar que `letsencryptresolver` está configurado
+3. Verificar logs do Traefik
+
+---
+
+## 🔄 Atualizações Futuras
+
+### Para atualizar o sistema:
+
+```bash
+# No servidor
+cd /opt/bbt-connect
+
+# Puxar novas alterações
+git pull origin main
+
+# Rebuildar imagens
+docker build -t bbt-connect-frontend:latest \
+  --build-arg VITE_API_URL=/api \
+  --build-arg VITE_WS_URL=wss://control.bbttransportes.com.br \
+  ./packages/frontend
+
+docker build -t bbt-connect-backend:latest ./packages/backend
+
+# No Portainer: Stacks → bbt-connect → Update the stack
+```
+
+---
+
+## 📞 Suporte
+
+Em caso de problemas, verificar:
+1. Logs dos containers
+2. Status da network_public
+3. Configuração do Traefik
+4. Variáveis de ambiente
+
+---
+
+**Deploy configurado para BBT Transportes** 🚛
