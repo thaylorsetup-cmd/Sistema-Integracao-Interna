@@ -1,0 +1,139 @@
+# =====================================================
+# BBT CONNECT - STACK PARA PORTAINER COM TRAEFIK
+# Deploy em: https://control.bbttransportes.com.br
+# =====================================================
+
+version: '3.7'
+
+networks:
+  network_public:
+    external: true
+
+services:
+  # ======== FRONTEND (React + Nginx) ========
+  frontend:
+    image: ${DOCKER_REGISTRY:-}bbt-connect-frontend:${VERSION:-latest}
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_WS_URL: wss://control.bbttransportes.com.br
+    environment:
+      TZ: America/Sao_Paulo
+    volumes:
+      - bbt_frontend_logs:/var/log/nginx
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      labels:
+        traefik.enable: "true"
+        traefik.docker.network: network_public
+        traefik.http.routers.bbt-connect.rule: "Host(`control.bbttransportes.com.br`)"
+        traefik.http.routers.bbt-connect.entrypoints: websecure
+        traefik.http.routers.bbt-connect.tls: "true"
+        traefik.http.routers.bbt-connect.tls.certresolver: letsencryptresolver
+        traefik.http.routers.bbt-connect.service: bbt-connect
+        traefik.http.services.bbt-connect.loadbalancer.server.port: "80"
+        traefik.http.services.bbt-connect.loadbalancer.passHostHeader: "true"
+        traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto: https
+        traefik.http.routers.bbt-connect.middlewares: sslheader@docker
+    depends_on:
+      - backend
+
+  # ======== BACKEND (Node.js API) ========
+  backend:
+    image: ${DOCKER_REGISTRY:-}bbt-connect-backend:${VERSION:-latest}
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+    environment:
+      TZ: America/Sao_Paulo
+      NODE_ENV: production
+      PORT: "3001"
+      
+      # URLs
+      BASE_URL: https://control.bbttransportes.com.br/api
+      CORS_ORIGIN: https://control.bbttransportes.com.br
+      
+      # Database PostgreSQL
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: bbt_connect
+      POSTGRES_USER: bbt_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2024!@#}
+      
+      # Autenticação
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-bbt_connect_auth_secret_production_32chars}
+      
+      # Upload
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: "52428800"
+      
+      # Logs
+      LOG_LEVEL: info
+    volumes:
+      - bbt_uploads:/app/uploads
+      - bbt_logs:/app/logs
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      labels:
+        # API acessível via /api no mesmo domínio
+        traefik.enable: "true"
+        traefik.docker.network: network_public
+        traefik.http.routers.bbt-api.rule: "Host(`control.bbttransportes.com.br`) && PathPrefix(`/api`)"
+        traefik.http.routers.bbt-api.entrypoints: websecure
+        traefik.http.routers.bbt-api.tls: "true"
+        traefik.http.routers.bbt-api.tls.certresolver: letsencryptresolver
+        traefik.http.routers.bbt-api.service: bbt-api
+        traefik.http.services.bbt-api.loadbalancer.server.port: "3001"
+        traefik.http.services.bbt-api.loadbalancer.passHostHeader: "true"
+        # WebSocket para Socket.IO
+        traefik.http.routers.bbt-ws.rule: "Host(`control.bbttransportes.com.br`) && PathPrefix(`/socket.io`)"
+        traefik.http.routers.bbt-ws.entrypoints: websecure
+        traefik.http.routers.bbt-ws.tls: "true"
+        traefik.http.routers.bbt-ws.tls.certresolver: letsencryptresolver
+        traefik.http.routers.bbt-ws.service: bbt-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      - postgres
+
+  # ======== POSTGRESQL ========
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      TZ: America/Sao_Paulo
+      POSTGRES_DB: bbt_connect
+      POSTGRES_USER: bbt_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2024!@#}
+    volumes:
+      - bbt_postgres_data:/var/lib/postgresql/data
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbt_user -d bbt_connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# ======== VOLUMES ========
+volumes:
+  bbt_postgres_data:
+    external: true
+  bbt_uploads:
+    external: true
+  bbt_logs:
+    external: true
+  bbt_frontend_logs:
+    external: true
