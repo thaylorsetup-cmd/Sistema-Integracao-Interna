@@ -8,6 +8,12 @@ import { logger } from '../config/logger.js';
 // Usuarios da planilha USUARIOS.xlsx
 const initialUsers = [
   {
+    email: 'thaylor@bbt.com.br',
+    nome: 'Thaylor Pereira',
+    password: 'sabadoeumemato123',
+    role: 'admin' as const,
+  },
+  {
     email: 'ti.mtz@bbttransportes.com.br',
     nome: 'Luciano Alves',
     password: 'bbt@2026',
