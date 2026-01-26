@@ -11,7 +11,7 @@ import { createServer } from 'http';
 
 import { env } from './config/env.js';
 import { logger, morganStream } from './config/logger.js';
-import { checkDatabaseConnection, closeDatabaseConnection } from './config/database.js';
+import { checkDatabaseConnection, closeDatabaseConnection, pool } from './config/database.js';
 import { initializeSocket } from './socket/index.js';
 import { defaultRateLimiter } from './middlewares/rate-limit.middleware.js';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware.js';
@@ -104,6 +104,7 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 import { runMigrations } from './db/migrate.js';
+import { seed } from './db/seed.js';
 
 // Iniciar servidor
 async function start() {
@@ -121,6 +122,20 @@ async function start() {
     } catch (error) {
       logger.error('Falha ao executar migracoes automaticas:', error);
       process.exit(1);
+    }
+
+    // Auto-seed: criar usuarios iniciais se tabela estiver vazia
+    try {
+      const userCountResult = await pool.query('SELECT COUNT(*) FROM users');
+      const userCount = parseInt(userCountResult.rows[0].count, 10);
+      if (userCount === 0) {
+        logger.info('Nenhum usuario encontrado. Executando seed automatico...');
+        await seed();
+      } else {
+        logger.info(`${userCount} usuario(s) encontrado(s). Seed nao necessario.`);
+      }
+    } catch (error) {
+      logger.warn('Aviso: Falha no auto-seed (nao bloqueia inicializacao):', error);
     }
 
     // Iniciar HTTP server

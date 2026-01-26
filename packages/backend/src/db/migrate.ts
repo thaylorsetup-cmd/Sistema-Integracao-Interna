@@ -75,10 +75,6 @@ export async function runMigrations() {
     return true;
   } catch (error) {
     logger.error('Falha critica nas migracoes:', error);
-    // Se falhar migracao, o app nao pode subir
-    if (require.main === module || process.argv[1] === __filename) {
-      process.exit(1);
-    }
     throw error;
   }
 }

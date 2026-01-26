@@ -12,13 +12,7 @@ networks:
 services:
   # ======== FRONTEND (React + Nginx) ========
   frontend:
-    image: ${DOCKER_REGISTRY:-}bbt-connect-frontend:${VERSION:-latest}
-    build:
-      context: ./packages/frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: /api
-        VITE_WS_URL: wss://control.bbttransportes.com.br
+    image: bbt-connect-frontend:latest
     environment:
       TZ: America/Sao_Paulo
     volumes:
@@ -44,10 +38,7 @@ services:
 
   # ======== BACKEND (Node.js API) ========
   backend:
-    image: ${DOCKER_REGISTRY:-}bbt-connect-backend:${VERSION:-latest}
-    build:
-      context: ./packages/backend
-      dockerfile: Dockerfile
+    image: bbt-connect-backend:latest
     environment:
       TZ: America/Sao_Paulo
       NODE_ENV: production
@@ -62,7 +53,7 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_DB: bbt_connect
       POSTGRES_USER: bbt_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2024!@#}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
       # SMTP (Email - Codigo de Acesso OTP)
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
@@ -117,7 +108,7 @@ services:
       TZ: America/Sao_Paulo
       POSTGRES_DB: bbt_connect
       POSTGRES_USER: bbt_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-BbtConnect2024!@#}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - bbt_postgres_data:/var/lib/postgresql/data
     networks:
