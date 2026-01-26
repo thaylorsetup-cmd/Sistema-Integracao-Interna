@@ -16,7 +16,7 @@ services:
     environment:
       TZ: America/Sao_Paulo
     volumes:
-      - bbt_frontend_logs:/var/log/nginx
+      - bbtconnect_frontend_logs:/var/log/nginx
     networks:
       - network_public
     deploy:
@@ -69,8 +69,8 @@ services:
       # Logs
       LOG_LEVEL: info
     volumes:
-      - bbt_uploads:/app/uploads
-      - bbt_logs:/app/logs
+      - bbtconnect_uploads:/app/uploads
+      - bbtconnect_logs:/app/logs
     networks:
       - network_public
     deploy:
@@ -110,7 +110,7 @@ services:
       POSTGRES_USER: bbt_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - bbt_postgres_data:/var/lib/postgresql/data
+      - bbtconnect_postgres_data:/var/lib/postgresql/data
     networks:
       - network_public
     deploy:
@@ -124,11 +124,11 @@ services:
 
 # ======== VOLUMES ========
 volumes:
-  bbt_postgres_data:
+  bbtconnect_postgres_data:
     external: true
-  bbt_uploads:
+  bbtconnect_uploads:
     external: true
-  bbt_logs:
+  bbtconnect_logs:
     external: true
-  bbt_frontend_logs:
+  bbtconnect_frontend_logs:
     external: true
