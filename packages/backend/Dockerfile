@@ -12,10 +12,10 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copiar arquivos de dependencias
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
 # Instalar dependencias (incluindo devDependencies para build)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copiar codigo fonte
 COPY . .
@@ -37,10 +37,10 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Copiar arquivos de dependencias
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
 # Instalar apenas dependencias de producao
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 # Copiar build do stage anterior
 COPY --from=builder /app/dist ./dist
