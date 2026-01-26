@@ -3,7 +3,8 @@ import type { AxiosInstance, AxiosProgressEvent } from 'axios';
 
 // Em produção com Traefik: usa /api (mesmo domínio)
 // Em desenvolvimento: usa URL completa do backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isLocal ? (import.meta.env.VITE_API_URL || 'http://localhost:3001') : '/api';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
