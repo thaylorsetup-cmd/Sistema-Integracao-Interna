@@ -106,19 +106,35 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 import { runMigrations } from './db/migrate.js';
 import { seed } from './db/seed.js';
 
+// Aguardar conexao com banco com retry
+async function waitForDatabase(maxRetries = 15, delayMs = 3000): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    logger.info(`Tentando conectar ao banco de dados (tentativa ${attempt}/${maxRetries})...`);
+    const connected = await checkDatabaseConnection();
+    if (connected) return true;
+    if (attempt < maxRetries) {
+      logger.warn(`Banco nao disponivel. Aguardando ${delayMs / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+}
+
 // Iniciar servidor
 async function start() {
   try {
-    // Verificar conexao com banco
-    const dbConnected = await checkDatabaseConnection();
+    // Aguardar conexao com banco (retry)
+    const dbConnected = await waitForDatabase();
     if (!dbConnected) {
-      logger.error('Falha na conexao com banco de dados');
+      logger.error('Falha na conexao com banco de dados apos todas as tentativas');
       process.exit(1);
     }
 
     // Executar migracoes automaticas
     try {
+      logger.info('Iniciando migracoes automaticas...');
       await runMigrations();
+      logger.info('Migracoes concluidas com sucesso');
     } catch (error) {
       logger.error('Falha ao executar migracoes automaticas:', error);
       process.exit(1);
