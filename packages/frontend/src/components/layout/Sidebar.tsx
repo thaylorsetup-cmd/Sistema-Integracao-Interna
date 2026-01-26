@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -10,6 +10,8 @@ import {
   X,
   FileSearch,
 } from 'lucide-react';
+import type { Permission } from '@/types';
+import { useAuth } from '@/contexts';
 
 interface SidebarProps {
   className?: string;
@@ -20,6 +22,7 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   badge?: string;
+  permission?: keyof Permission;
 }
 
 const navItems: NavItem[] = [
@@ -27,28 +30,33 @@ const navItems: NavItem[] = [
     to: '/dashboard/operador',
     icon: LayoutDashboard,
     label: 'Envio de Documentos',
+    permission: 'viewDashboardOperador',
   },
   {
     to: '/dashboard/cadastro-gr',
     icon: FileSearch,
     label: 'Cadastro GR',
     badge: 'NOVO',
+    permission: 'viewDashboardCadastroGR',
   },
   {
     to: '/dashboard/gestao',
     icon: BarChart3,
     label: 'Dashboard Gestão',
+    permission: 'viewDashboardGestao',
   },
   {
     to: '/tv-display',
     icon: Tv,
     label: 'TV Display',
     badge: 'LIVE',
+    permission: 'viewTvDisplay',
   },
   {
     to: '/auditoria',
     icon: FileText,
     label: 'Auditoria',
+    permission: 'viewAuditoria',
   },
   {
     to: '/configuracoes',
@@ -59,6 +67,14 @@ const navItems: NavItem[] = [
 
 export function Sidebar({ className = '' }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { hasPermission } = useAuth();
+
+  const filteredNavItems = useMemo(() => {
+    return navItems.filter((item) => {
+      if (!item.permission) return true;
+      return hasPermission(item.permission);
+    });
+  }, [hasPermission]);
 
   return (
     <>
@@ -96,7 +112,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
         <nav className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto">
           {/* Navigation Items */}
           <div className="flex-1 px-4 space-y-2">
-            {navItems.map((item, index) => (
+            {filteredNavItems.map((item, index) => (
               <NavLink
                 key={item.to}
                 to={item.to}

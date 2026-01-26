@@ -25,13 +25,31 @@ export interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   sendCode: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permission: keyof Permission) => boolean;
   isAdmin: () => boolean;
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+const defaultRouteByRole: Record<string, string> = {
+  admin: '/dashboard/gestao',
+  gestor: '/dashboard/gestao',
+  operacional: '/dashboard/operador',
+  cadastro: '/dashboard/cadastro-gr',
+  comercial: '/dashboard/gestao',
+  auditor: '/auditoria',
+};
+
+export function getDefaultRoute(role?: string): string {
+  if (!role) return '/dashboard/operador';
+  return defaultRouteByRole[role] || '/dashboard/operador';
 }
 
 // =====================================================
@@ -53,7 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   // Verificar sessao ao iniciar
-  const checkSession = useCallback(async () => {
+  const checkSession = useCallback(async (): Promise<User | null> => {
     try {
       const response = await authApi.getMe();
 
@@ -69,6 +87,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isLoading: false,
           isAuthenticated: true,
         });
+        return user;
       } else {
         setAuthState({
           user: null,
@@ -76,6 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isLoading: false,
           isAuthenticated: false,
         });
+        return null;
       }
     } catch {
       // Sessao invalida ou expirada
@@ -85,6 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading: false,
         isAuthenticated: false,
       });
+      return null;
     }
   }, []);
 
@@ -93,7 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [checkSession]);
 
   // Login simples com email e senha
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     setAuthState((prev) => ({ ...prev, isLoading: true }));
 
     try {
@@ -104,7 +125,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Buscar dados do usuario apos autenticacao
-      await checkSession();
+      const user = await checkSession();
+      if (!user) {
+        throw new Error('Falha ao carregar dados do usuario');
+      }
+      return user;
     } catch (error) {
       setAuthState((prev) => ({ ...prev, isLoading: false }));
       throw error;

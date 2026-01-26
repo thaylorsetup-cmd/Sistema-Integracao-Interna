@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
-import { AuthProvider } from '@/contexts';
+import { AuthProvider, useAuth, getDefaultRoute } from '@/contexts';
 import { MainLayout } from '@/components/layout';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ToastProvider, Loading } from '@/components/ui';
 import { Login } from '@/pages/auth';
 import './App.css';
@@ -22,9 +23,17 @@ const TvAlertas = lazy(() => import('@/pages/tv').then(module => ({ default: mod
 const Configuracoes = lazy(() => import('@/pages/Configuracoes').then(module => ({ default: module.Configuracoes })));
 const Auditoria = lazy(() => import('@/pages/Auditoria').then(module => ({ default: module.Auditoria })));
 const Notificacoes = lazy(() => import('@/pages/Notificacoes').then(module => ({ default: module.Notificacoes })));
-import './App.css';
 
 const queryClient = new QueryClient();
+
+// Redirect baseado no role do usuario
+function DefaultRedirect() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) return <Loading />;
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  return <Navigate to={getDefaultRoute(user.role)} replace />;
+}
 
 function App() {
   return (
@@ -49,79 +58,93 @@ function App() {
               <Route
                 path="/dashboard/operador"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <DashboardOperador />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute permission="viewDashboardOperador">
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <DashboardOperador />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/dashboard/gestao"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <DashboardGestao />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute permission="viewDashboardGestao">
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <DashboardGestao />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/dashboard/cadastro-gr"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <DashboardCadastroGR />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute permission="viewDashboardCadastroGR">
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <DashboardCadastroGR />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/dashboard/kpi/:tipo"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <KpiDetalhes />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <KpiDetalhes />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/auditoria"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <Auditoria />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute permission="viewAuditoria">
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <Auditoria />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/notificacoes"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <Notificacoes />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <Notificacoes />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
               <Route
                 path="/configuracoes"
                 element={
-                  <MainLayout>
-                    <Suspense fallback={<Loading />}>
-                      <Configuracoes />
-                    </Suspense>
-                  </MainLayout>
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <Configuracoes />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
                 }
               />
 
-              {/* Redirect root to dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard/operador" replace />} />
+              {/* Redirect root to user's default dashboard */}
+              <Route path="/" element={<DefaultRedirect />} />
 
-              {/* Catch all - redirect to dashboard */}
-              <Route path="*" element={<Navigate to="/dashboard/operador" replace />} />
+              {/* Catch all - redirect to user's default dashboard */}
+              <Route path="*" element={<DefaultRedirect />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

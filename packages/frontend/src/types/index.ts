@@ -21,7 +21,7 @@ export interface PaginatedResponse<T> {
 // SISTEMA DE AUTENTICAÇÃO E PERMISSÕES
 // ============================================================================
 
-export type UserRole = 'admin' | 'gestor' | 'operacional' | 'cadastro' | 'comercial';
+export type UserRole = 'admin' | 'gestor' | 'operacional' | 'cadastro' | 'comercial' | 'auditor';
 
 export interface Permission {
   // Dashboards

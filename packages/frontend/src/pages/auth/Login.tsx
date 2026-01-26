@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts';
+import { useAuth, getDefaultRoute } from '@/contexts';
 import { Truck, Shield, MapPin, Mail, ArrowRight, Sparkles, Radio, BarChart3, Lock, Eye, EyeOff } from 'lucide-react';
 import { LightVideoBackground } from '@/components/ui';
 
@@ -19,8 +19,8 @@ export function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/dashboard/operador');
+      const user = await login(email, password);
+      navigate(getDefaultRoute(user.role));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Credenciais invalidas';
       setError(message);

@@ -81,23 +81,33 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Graceful shutdown
+let isShuttingDown = false;
+
 async function shutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
   logger.info(`${signal} recebido. Iniciando shutdown graceful...`);
 
-  httpServer.close(async () => {
+  const forceTimeout = setTimeout(() => {
+    logger.error('Shutdown forcado apos timeout');
+    process.exit(1);
+  }, 30000);
+
+  try {
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => resolve());
+    });
     logger.info('HTTP server fechado');
 
     await closeDatabaseConnection();
     logger.info('Conexoes de banco fechadas');
-
+  } catch (error) {
+    logger.error('Erro durante shutdown:', error);
+  } finally {
+    clearTimeout(forceTimeout);
     process.exit(0);
-  });
-
-  // Forcar saida apos 30 segundos
-  setTimeout(() => {
-    logger.error('Shutdown forcado apos timeout');
-    process.exit(1);
-  }, 30000);
+  }
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
