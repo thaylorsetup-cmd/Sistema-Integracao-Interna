@@ -14,7 +14,7 @@ services:
         VITE_API_URL: https://control.bbttransportes.com.br
         VITE_WS_URL: wss://control.bbttransportes.com.br
     networks:
-      - traefik_traefik
+      - network_public
       - bbt_internal
     deploy:
       replicas: 1
@@ -28,7 +28,7 @@ services:
         - "traefik.http.routers.bbtconnect.entrypoints=websecure"
         - "traefik.http.routers.bbtconnect.tls.certresolver=letsencrypt"
         - "traefik.http.services.bbtconnect.loadbalancer.server.port=80"
-        - "traefik.docker.network=traefik_traefik"
+        - "traefik.docker.network=network_public"
 
   # ======== BACKEND (Node.js API) ========
   backend:
@@ -106,7 +106,7 @@ volumes:
     driver: local
 
 networks:
-  traefik_traefik:
+  network_public:
     external: true
   bbt_internal:
     driver: overlay
