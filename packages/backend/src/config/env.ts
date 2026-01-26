@@ -25,8 +25,12 @@ const envSchema = z.object({
   POSTGRES_USER: z.string().default('postgres'),
   POSTGRES_PASSWORD: z.string().default('postgres'),
 
-  // Better-Auth
-  BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET deve ter no minimo 32 caracteres'),
+  // SMTP (Email)
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
+  SMTP_FROM: z.string().default('BBT Connect <chat.bbttransportes@gmail.com>'),
 
   // Uploads
   UPLOAD_DIR: z.string().default('./uploads'),

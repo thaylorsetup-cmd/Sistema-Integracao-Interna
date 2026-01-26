@@ -13,13 +13,12 @@ const __dirname = path.dirname(__filename);
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
-async function runMigrations() {
+export async function runMigrations() {
   logger.info('Iniciando migracoes do banco de dados...');
 
   try {
-    // Verificar conexao
-    await pool.query('SELECT NOW()');
-    logger.info('Conexao com banco OK');
+    // Verificar conexao (usando client temporario para nao afetar pool global se necessario)
+    // Mas aqui usaremos o pool importado
 
     // Criar tabela de controle de migracoes
     await pool.query(`
@@ -40,12 +39,12 @@ async function runMigrations() {
       .filter((f) => f.endsWith('.sql'))
       .sort();
 
-    logger.info(`Encontradas ${files.length} migracoes`);
+    logger.info(`Encontradas ${files.length} migracoes no diretorio: ${MIGRATIONS_DIR}`);
 
     // Executar migracoes pendentes
     for (const file of files) {
       if (executed.has(file)) {
-        logger.debug(`Migracao ${file} ja executada, pulando...`);
+        logger.debug(`Migracao ${file} ja executada`);
         continue;
       }
 
@@ -62,23 +61,32 @@ async function runMigrations() {
         await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
         await client.query('COMMIT');
 
-        logger.info(`Migracao ${file} executada com sucesso`);
+        logger.info(`Migracao ${file} concluida`);
       } catch (error) {
         await client.query('ROLLBACK');
+        logger.error(`Erro na migracao ${file}:`, error);
         throw error;
       } finally {
         client.release();
       }
     }
 
-    logger.info('Todas as migracoes foram executadas com sucesso!');
+    logger.info('Migracoes concluidas com sucesso!');
+    return true;
   } catch (error) {
-    logger.error('Erro nas migracoes:', error);
-    process.exit(1);
-  } finally {
-    await pool.end();
+    logger.error('Falha critica nas migracoes:', error);
+    // Se falhar migracao, o app nao pode subir
+    if (require.main === module || process.argv[1] === __filename) {
+      process.exit(1);
+    }
+    throw error;
   }
 }
 
-// Executar
-runMigrations();
+// Executar se chamado diretamente pelo node/tsx
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  runMigrations()
+    .then(() => pool.end())
+    .catch(() => process.exit(1));
+}

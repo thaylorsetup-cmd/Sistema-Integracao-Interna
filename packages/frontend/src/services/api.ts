@@ -60,12 +60,21 @@ export interface UploadProgress {
 // =====================================================
 
 export const authApi = {
-  // Login
-  signIn: async (email: string, password: string) => {
-    const response = await apiClient.post<ApiResponse>('/auth/sign-in/email', {
-      email,
-      password,
-    });
+  // Login simples com email e senha
+  login: async (email: string, password: string) => {
+    const response = await apiClient.post<ApiResponse>('/auth/login', { email, password });
+    return response.data;
+  },
+
+  // Enviar codigo de verificacao por email (legado)
+  sendCode: async (email: string) => {
+    const response = await apiClient.post<ApiResponse>('/auth/send-code', { email });
+    return response.data;
+  },
+
+  // Verificar codigo e autenticar (legado)
+  verifyCode: async (email: string, code: string) => {
+    const response = await apiClient.post<ApiResponse>('/auth/verify-code', { email, code });
     return response.data;
   },
 

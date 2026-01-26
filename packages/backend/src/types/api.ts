@@ -2,7 +2,7 @@
  * Tipos da API - Request e Response
  */
 import type { Request } from 'express';
-import type { User, Session } from './database.js';
+import type { User } from './database.js';
 
 // =====================================================
 // REQUEST CUSTOMIZADO

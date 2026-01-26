@@ -4,41 +4,38 @@
  */
 import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import bcrypt from 'bcryptjs';
 
-const SALT_ROUNDS = 10;
-
-// Usuarios iniciais
+// Usuarios iniciais com senha simples (ambiente interno)
 const initialUsers = [
   {
     email: 'admin@bbt.com',
     nome: 'Administrador',
+    password: 'admin123',
     role: 'admin' as const,
-    password: 'bbt@2024',
   },
   {
     email: 'gestor@bbt.com',
     nome: 'Gestor Operacional',
+    password: 'bbt123',
     role: 'gestor' as const,
-    password: 'bbt@2024',
   },
   {
     email: 'operador@bbt.com',
     nome: 'Operador',
+    password: 'bbt123',
     role: 'operacional' as const,
-    password: 'bbt@2024',
   },
   {
     email: 'cadastro@bbt.com',
     nome: 'Analista de Cadastro',
+    password: 'bbt123',
     role: 'cadastro' as const,
-    password: 'bbt@2024',
   },
   {
     email: 'comercial@bbt.com',
     nome: 'Comercial',
+    password: 'bbt123',
     role: 'comercial' as const,
-    password: 'bbt@2024',
   },
 ];
 
@@ -55,19 +52,23 @@ export async function seed() {
         .executeTakeFirst();
 
       if (existing) {
-        logger.info(`Usuario ${user.email} ja existe, pulando...`);
+        // Atualizar senha se usuario ja existe
+        await db
+          .updateTable('users')
+          .set({ password: user.password })
+          .where('email', '=', user.email)
+          .execute();
+        logger.info(`Senha atualizada para: ${user.email}`);
         continue;
       }
 
-      // Hash da senha
-      const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
-
       // Criar usuario
-      const newUser = await db
+      await db
         .insertInto('users')
         .values({
           email: user.email,
           nome: user.nome,
+          password: user.password,
           role: user.role,
           email_verified: true,
           ativo: true,
@@ -75,21 +76,7 @@ export async function seed() {
         .returning(['id', 'email'])
         .executeTakeFirst();
 
-      if (newUser) {
-        // Criar account com senha (better-auth)
-        await db
-          .insertInto('account')
-          .values({
-            id: `credential_${newUser.id}`,
-            user_id: newUser.id,
-            account_id: newUser.id,
-            provider_id: 'credential',
-            password: passwordHash,
-          })
-          .execute();
-
-        logger.info(`Usuario criado: ${user.email} (${user.role})`);
-      }
+      logger.info(`Usuario criado: ${user.email} (${user.role})`);
     }
 
     logger.info('Seed concluido com sucesso!');
@@ -106,3 +93,4 @@ if (isMainModule) {
     .then(() => process.exit(0))
     .catch(() => process.exit(1));
 }
+

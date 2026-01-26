@@ -3,13 +3,21 @@
  * Middleware para verificar sessao em conexoes socket
  */
 import type { Socket } from 'socket.io';
-import { auth } from '../auth.js';
+import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
 
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
   userEmail?: string;
   userRole?: string;
+}
+
+/**
+ * Extrai valor de um cookie especifico da string de cookies
+ */
+function parseCookie(cookieHeader: string, name: string): string | undefined {
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
 }
 
 /**
@@ -20,7 +28,6 @@ export async function socketAuthMiddleware(
   next: (err?: Error) => void
 ) {
   try {
-    // Tentar obter cookie da conexao
     const cookies = socket.handshake.headers.cookie;
 
     if (!cookies) {
@@ -29,19 +36,32 @@ export async function socketAuthMiddleware(
       return next();
     }
 
-    // Criar headers para o better-auth
-    const headers = new Headers();
-    headers.set('cookie', cookies);
+    const token = parseCookie(cookies, 'bbt_session');
 
-    // Verificar sessao
-    const session = await auth.api.getSession({ headers });
+    if (!token) {
+      return next();
+    }
 
-    if (session?.user) {
-      socket.userId = session.user.id;
-      socket.userEmail = session.user.email;
-      socket.userRole = session.user.role as string;
+    // Verificar sessao no banco
+    const result = await db
+      .selectFrom('sessions')
+      .innerJoin('users', 'users.id', 'sessions.user_id')
+      .where('sessions.token', '=', token)
+      .where('sessions.expires_at', '>', new Date())
+      .where('users.ativo', '=', true)
+      .select([
+        'users.id',
+        'users.email',
+        'users.role',
+      ])
+      .executeTakeFirst();
 
-      logger.debug(`Socket autenticado: ${session.user.email}`);
+    if (result) {
+      socket.userId = result.id;
+      socket.userEmail = result.email;
+      socket.userRole = result.role;
+
+      logger.debug(`Socket autenticado: ${result.email}`);
     }
 
     next();

@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts';
-import { Truck, Shield, MapPin, Lock, Mail, ArrowRight, Sparkles, Radio, BarChart3 } from 'lucide-react';
+import { Truck, Shield, MapPin, Mail, ArrowRight, Sparkles, Radio, BarChart3, Lock, Eye, EyeOff } from 'lucide-react';
 import { LightVideoBackground } from '@/components/ui';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -21,7 +22,8 @@ export function Login() {
       await login(email, password);
       navigate('/dashboard/operador');
     } catch (err) {
-      setError('Credenciais inválidas. Tente novamente.');
+      const message = err instanceof Error ? err.message : 'Credenciais invalidas';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -36,7 +38,7 @@ export function Login() {
         opacity={0.2}
       />
 
-      {/* Conteúdo Principal */}
+      {/* Conteudo Principal */}
       <div className="relative z-10 min-h-screen flex">
         {/* Lado esquerdo - Branding (Desktop) */}
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-20">
@@ -53,7 +55,7 @@ export function Login() {
                 <h1 className="text-4xl font-black text-white tracking-tight">BBT Connect</h1>
                 <p className="text-benfica-blue font-semibold flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  Sistema de Gestão
+                  Sistema de Gestao
                 </p>
               </div>
             </div>
@@ -66,7 +68,7 @@ export function Login() {
               </h2>
               <p className="text-xl text-slate-300 max-w-md leading-relaxed">
                 Sistema completo de monitoramento de frotas em tempo real.
-                Segurança e eficiência para sua operação logística.
+                Seguranca e eficiencia para sua operacao logistica.
               </p>
             </div>
 
@@ -75,8 +77,8 @@ export function Login() {
               {[
                 { icon: Truck, text: 'Frota em Tempo Real' },
                 { icon: MapPin, text: 'Rastreamento GPS' },
-                { icon: Shield, text: 'Segurança Total' },
-                { icon: Radio, text: 'Comunicação Direta' },
+                { icon: Shield, text: 'Seguranca Total' },
+                { icon: Radio, text: 'Comunicacao Direta' },
               ].map((feature, idx) => (
                 <div
                   key={idx}
@@ -102,13 +104,13 @@ export function Login() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-benfica-blue"></span>
-                <span className="text-sm text-slate-400">24 Veículos Ativos</span>
+                <span className="text-sm text-slate-400">24 Veiculos Ativos</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Lado direito - Formulário */}
+        {/* Lado direito - Formulario */}
         <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-md animate-slideUp">
             {/* Mobile Logo - Igual ao interior */}
@@ -119,21 +121,22 @@ export function Login() {
                 </div>
               </div>
               <h1 className="text-2xl font-bold text-white">BBT Connect</h1>
-              <p className="text-benfica-blue text-sm">Sistema de Gestão</p>
+              <p className="text-benfica-blue text-sm">Sistema de Gestao</p>
             </div>
 
-            {/* Card do formulário - Glassmorphism com cores contextuais (sem vermelho) */}
+            {/* Card do formulario - Glassmorphism */}
             <div className="bg-slate-950/60 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10 hover:border-benfica-blue/20 transition-all duration-300">
-              {/* Header do card - Azul ao invés de vermelho */}
+              {/* Header do card */}
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl mb-4 shadow-lg shadow-benfica-blue/30 border border-white/20">
                   <Lock className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-2xl font-bold text-white">Acesso ao Sistema</h2>
-                <p className="text-slate-400 mt-1">Entre com suas credenciais</p>
+                <p className="text-slate-400 mt-1">Digite suas credenciais para entrar</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Formulario de Login */}
+              <form onSubmit={handleLogin} className="space-y-5">
                 {/* Email */}
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-sm font-semibold text-slate-300">
@@ -154,6 +157,7 @@ export function Login() {
                                outline-none transition-all duration-200 text-white font-medium
                                placeholder:text-slate-500"
                       placeholder="seu@email.com"
+                      autoFocus
                     />
                   </div>
                 </div>
@@ -169,20 +173,27 @@ export function Login() {
                     </div>
                     <input
                       id="password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-900/50 border border-white/10 rounded-xl
+                      className="w-full pl-12 pr-12 py-4 bg-slate-900/50 border border-white/10 rounded-xl
                                focus:border-benfica-blue focus:ring-2 focus:ring-benfica-blue/20
                                outline-none transition-all duration-200 text-white font-medium
                                placeholder:text-slate-500"
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Erro - Laranja/Amber ao invés de vermelho */}
+                {/* Erro */}
                 {error && (
                   <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-3 rounded-xl flex items-center gap-2">
                     <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
@@ -190,18 +201,7 @@ export function Login() {
                   </div>
                 )}
 
-                {/* Lembrar-me e Esqueceu senha */}
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-benfica-blue focus:ring-benfica-blue/20" />
-                    <span className="text-slate-400">Lembrar-me</span>
-                  </label>
-                  <a href="#" className="text-benfica-blue hover:text-blue-400 font-semibold transition-colors">
-                    Esqueceu a senha?
-                  </a>
-                </div>
-
-                {/* Botão Submit - Azul ao invés de vermelho */}
+                {/* Botao Submit */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -219,42 +219,21 @@ export function Login() {
                     </>
                   ) : (
                     <>
-                      Acessar Sistema
+                      Entrar
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </button>
               </form>
-
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-slate-950/60 px-4 text-sm text-slate-500">ou</span>
-                </div>
-              </div>
-
-              {/* Botão secundário */}
-              <button
-                type="button"
-                className="w-full bg-white/5 text-slate-300 py-4 rounded-xl
-                         font-bold border border-white/10
-                         hover:bg-white/10 hover:border-white/20 hover:text-white hover:-translate-y-0.5
-                         active:translate-y-0 transition-all duration-200"
-              >
-                Solicitar Acesso
-              </button>
             </div>
 
             {/* Footer */}
             <div className="text-center mt-6">
               <p className="text-slate-500 text-sm">
-                Acesso restrito a usuários autorizados
+                Acesso restrito a usuarios autorizados
               </p>
               <p className="text-slate-600 text-xs mt-1">
-                BBT Connect © {new Date().getFullYear()}
+                BBT Connect &copy; {new Date().getFullYear()}
               </p>
             </div>
           </div>

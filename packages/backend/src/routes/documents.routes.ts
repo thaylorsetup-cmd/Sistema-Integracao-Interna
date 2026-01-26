@@ -11,11 +11,11 @@ import { requirePermission } from '../middlewares/permission.middleware.js';
 import {
   uploadSingle,
   uploadMultiple,
-  uploadRateLimiter,
   deleteFile,
   getFilePath,
   fileExists,
 } from '../middlewares/upload.middleware.js';
+import { uploadRateLimiter } from '../middlewares/rate-limit.middleware.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import type { AuthenticatedRequest } from '../types/api.js';

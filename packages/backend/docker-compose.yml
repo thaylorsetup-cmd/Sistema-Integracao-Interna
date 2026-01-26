@@ -25,7 +25,11 @@ services:
       - POSTGRES_DB=bbt_connect
       - POSTGRES_USER=bbt_user
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bbt_secure_password}
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change_this_in_production_32chars}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-chat.bbttransportes@gmail.com}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-BBT Connect <chat.bbttransportes@gmail.com>}
       - UPLOAD_DIR=/app/uploads
       - MAX_FILE_SIZE=52428800
       - LOG_LEVEL=info

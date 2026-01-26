@@ -1,9 +1,9 @@
 /**
  * Middleware de Autenticacao
- * Verifica sessao via Better-Auth
+ * Verifica sessao via cookie bbt_session
  */
 import type { Response, NextFunction } from 'express';
-import { auth } from '../auth.js';
+import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import type { AuthenticatedRequest } from '../types/api.js';
 
@@ -17,12 +17,37 @@ export async function requireAuth(
   next: NextFunction
 ): Promise<void> {
   try {
-    // Obter sessao do better-auth
-    const session = await auth.api.getSession({
-      headers: req.headers as Headers,
-    });
+    const token = req.cookies?.bbt_session;
 
-    if (!session || !session.user) {
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: 'Nao autenticado',
+        message: 'Sessao invalida ou expirada',
+      });
+      return;
+    }
+
+    // Buscar sessao e usuario
+    const result = await db
+      .selectFrom('sessions')
+      .innerJoin('users', 'users.id', 'sessions.user_id')
+      .where('sessions.token', '=', token)
+      .where('sessions.expires_at', '>', new Date())
+      .select([
+        'sessions.id as session_id',
+        'sessions.expires_at',
+        'users.id',
+        'users.email',
+        'users.nome',
+        'users.role',
+        'users.ativo',
+        'users.filial_id',
+        'users.avatar',
+      ])
+      .executeTakeFirst();
+
+    if (!result) {
       res.status(401).json({
         success: false,
         error: 'Nao autenticado',
@@ -32,7 +57,7 @@ export async function requireAuth(
     }
 
     // Verificar se usuario esta ativo
-    if (!session.user.ativo) {
+    if (!result.ativo) {
       res.status(403).json({
         success: false,
         error: 'Usuario desativado',
@@ -42,11 +67,20 @@ export async function requireAuth(
     }
 
     // Adicionar usuario e sessao ao request
-    req.user = session.user as AuthenticatedRequest['user'];
+    req.user = {
+      id: result.id,
+      email: result.email,
+      nome: result.nome,
+      role: result.role,
+      ativo: result.ativo,
+      filial_id: result.filial_id,
+      avatar: result.avatar,
+    } as AuthenticatedRequest['user'];
+
     req.session = {
-      id: session.session.id,
-      userId: session.user.id,
-      expiresAt: new Date(session.session.expiresAt),
+      id: result.session_id,
+      userId: result.id,
+      expiresAt: new Date(result.expires_at),
     };
 
     next();
@@ -66,26 +100,54 @@ export async function requireAuth(
  */
 export async function optionalAuth(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const session = await auth.api.getSession({
-      headers: req.headers as Headers,
-    });
+    const token = req.cookies?.bbt_session;
 
-    if (session?.user) {
-      req.user = session.user as AuthenticatedRequest['user'];
+    if (!token) {
+      return next();
+    }
+
+    const result = await db
+      .selectFrom('sessions')
+      .innerJoin('users', 'users.id', 'sessions.user_id')
+      .where('sessions.token', '=', token)
+      .where('sessions.expires_at', '>', new Date())
+      .select([
+        'sessions.id as session_id',
+        'sessions.expires_at',
+        'users.id',
+        'users.email',
+        'users.nome',
+        'users.role',
+        'users.ativo',
+        'users.filial_id',
+        'users.avatar',
+      ])
+      .executeTakeFirst();
+
+    if (result && result.ativo) {
+      req.user = {
+        id: result.id,
+        email: result.email,
+        nome: result.nome,
+        role: result.role,
+        ativo: result.ativo,
+        filial_id: result.filial_id,
+        avatar: result.avatar,
+      } as AuthenticatedRequest['user'];
+
       req.session = {
-        id: session.session.id,
-        userId: session.user.id,
-        expiresAt: new Date(session.session.expiresAt),
+        id: result.session_id,
+        userId: result.id,
+        expiresAt: new Date(result.expires_at),
       };
     }
 
     next();
   } catch (error) {
-    // Em caso de erro, continua sem autenticacao
     logger.debug('Autenticacao opcional falhou:', error);
     next();
   }

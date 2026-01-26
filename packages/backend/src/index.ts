@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 
 import { env } from './config/env.js';
@@ -40,6 +41,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   })
 );
+
+// Cookie parser
+app.use(cookieParser());
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
@@ -99,6 +103,8 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+import { runMigrations } from './db/migrate.js';
+
 // Iniciar servidor
 async function start() {
   try {
@@ -106,6 +112,14 @@ async function start() {
     const dbConnected = await checkDatabaseConnection();
     if (!dbConnected) {
       logger.error('Falha na conexao com banco de dados');
+      process.exit(1);
+    }
+
+    // Executar migracoes automaticas
+    try {
+      await runMigrations();
+    } catch (error) {
+      logger.error('Falha ao executar migracoes automaticas:', error);
       process.exit(1);
     }
 

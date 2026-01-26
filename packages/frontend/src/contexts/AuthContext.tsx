@@ -26,6 +26,8 @@ export interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  sendCode: (email: string) => Promise<void>;
+  verifyCode: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permission: keyof Permission) => boolean;
@@ -90,18 +92,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkSession();
   }, [checkSession]);
 
-  // Login
+  // Login simples com email e senha
   const login = async (email: string, password: string) => {
     setAuthState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const response = await authApi.signIn(email, password);
+      const response = await authApi.login(email, password);
 
       if (!response.success) {
-        throw new Error(response.error || 'Erro ao fazer login');
+        throw new Error(response.error || 'Credenciais invalidas');
       }
 
-      // Buscar dados do usuario apos login
+      // Buscar dados do usuario apos autenticacao
+      await checkSession();
+    } catch (error) {
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  };
+
+  // Enviar codigo de verificacao (mantido para compatibilidade)
+  const sendCode = async (email: string) => {
+    const response = await authApi.sendCode(email);
+
+    if (!response.success) {
+      throw new Error(response.error || 'Erro ao enviar codigo');
+    }
+  };
+
+  // Verificar codigo e autenticar (mantido para compatibilidade)
+  const verifyCode = async (email: string, code: string) => {
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      const response = await authApi.verifyCode(email, code);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Codigo invalido');
+      }
+
+      // Buscar dados do usuario apos autenticacao
       await checkSession();
     } catch (error) {
       setAuthState((prev) => ({ ...prev, isLoading: false }));
@@ -144,6 +174,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     ...authState,
     login,
+    sendCode,
+    verifyCode,
     logout,
     refreshUser,
     hasPermission,
@@ -152,3 +184,4 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+

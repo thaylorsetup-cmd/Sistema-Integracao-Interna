@@ -17,6 +17,7 @@ const router = Router();
 const createUserSchema = z.object({
   email: z.string().email('Email invalido'),
   nome: z.string().min(2, 'Nome deve ter no minimo 2 caracteres'),
+  password: z.string().min(3, 'Senha deve ter no minimo 3 caracteres').default('bbt123'),
   role: z.enum(['admin', 'gestor', 'operacional', 'cadastro', 'comercial']),
   filialId: z.string().optional(),
 });
@@ -24,6 +25,7 @@ const createUserSchema = z.object({
 // Schema de validacao para atualizar usuario
 const updateUserSchema = z.object({
   nome: z.string().min(2).optional(),
+  password: z.string().min(3).optional(),
   role: z.enum(['admin', 'gestor', 'operacional', 'cadastro', 'comercial']).optional(),
   ativo: z.boolean().optional(),
   filialId: z.string().nullable().optional(),
@@ -189,6 +191,7 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
       .values({
         email: data.email,
         nome: data.nome,
+        password: data.password,
         role: data.role,
         filial_id: data.filialId,
         ativo: true,
@@ -252,6 +255,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       .updateTable('users')
       .set({
         ...(data.nome && { nome: data.nome }),
+        ...(data.password && { password: data.password }),
         ...(data.role && { role: data.role }),
         ...(data.ativo !== undefined && { ativo: data.ativo }),
         ...(data.filialId !== undefined && { filial_id: data.filialId }),

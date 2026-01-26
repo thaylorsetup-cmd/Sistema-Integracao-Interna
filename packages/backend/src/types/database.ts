@@ -22,14 +22,13 @@ export type RejectionCategory = 'documentos-incompletos' | 'documentos-invalidos
 export interface UsersTable {
   id: Generated<string>;
   email: string;
-  name: string;
-  password_hash: string;
-  telefone: string | null;
+  nome: string;
+  password: string;
   role: UserRole;
-  departamento: string;
-  avatar: string | null;
   ativo: Generated<boolean>;
   email_verified: Generated<boolean>;
+  filial_id: string | null;
+  avatar: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -39,53 +38,38 @@ export type NewUser = Insertable<UsersTable>;
 export type UserUpdate = Updateable<UsersTable>;
 
 // =====================================================
-// TABELA: session (Better-Auth)
+// TABELA: auth_codes (Codigos OTP)
 // =====================================================
 
-export interface SessionTable {
-  id: string;
+export interface AuthCodesTable {
+  id: Generated<string>;
+  email: string;
+  code: string;
+  expires_at: Date;
+  used: Generated<boolean>;
+  ip_address: string | null;
+  created_at: Generated<Date>;
+}
+
+export type AuthCode = Selectable<AuthCodesTable>;
+export type NewAuthCode = Insertable<AuthCodesTable>;
+
+// =====================================================
+// TABELA: sessions
+// =====================================================
+
+export interface SessionsTable {
+  id: Generated<string>;
   token: string;
   user_id: string;
   expires_at: Date;
   ip_address: string | null;
   user_agent: string | null;
   created_at: Generated<Date>;
-  updated_at: Generated<Date>;
 }
 
-export type Session = Selectable<SessionTable>;
-
-// =====================================================
-// TABELA: account (Better-Auth - OAuth)
-// =====================================================
-
-export interface AccountTable {
-  id: string;
-  user_id: string;
-  account_id: string;
-  provider_id: string;
-  access_token: string | null;
-  refresh_token: string | null;
-  access_token_expires_at: Date | null;
-  refresh_token_expires_at: Date | null;
-  scope: string | null;
-  id_token: string | null;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
-
-// =====================================================
-// TABELA: verification (Better-Auth)
-// =====================================================
-
-export interface VerificationTable {
-  id: string;
-  identifier: string;
-  value: string;
-  expires_at: Date;
-  created_at: Generated<Date>;
-  updated_at: Generated<Date>;
-}
+export type Session = Selectable<SessionsTable>;
+export type NewSession = Insertable<SessionsTable>;
 
 // =====================================================
 // TABELA: submissions (Fila de Cadastros)
@@ -178,9 +162,8 @@ export type DelayUpdate = Updateable<DelaysTable>;
 
 export interface Database {
   users: UsersTable;
-  session: SessionTable;
-  account: AccountTable;
-  verification: VerificationTable;
+  auth_codes: AuthCodesTable;
+  sessions: SessionsTable;
   submissions: SubmissionsTable;
   documents: DocumentsTable;
   audit_logs: AuditLogsTable;
