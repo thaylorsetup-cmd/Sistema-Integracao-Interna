@@ -1,0 +1,112 @@
+# =====================================================
+# BBT CONNECT - Docker Stack (Docker Swarm / Portainer)
+# Deploy: docker stack deploy -c docker-stack.yml bbtconnect
+# =====================================================
+
+services:
+  # ======== FRONTEND (Nginx + React) ========
+  frontend:
+    image: bbtconnect-frontend:latest
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+      args:
+        VITE_API_URL: https://control.bbttransportes.com.br
+        VITE_WS_URL: wss://control.bbttransportes.com.br
+    networks:
+      - traefik_traefik
+      - bbt_internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.bbtconnect.rule=Host(`control.bbttransportes.com.br`)"
+        - "traefik.http.routers.bbtconnect.entrypoints=websecure"
+        - "traefik.http.routers.bbtconnect.tls.certresolver=letsencrypt"
+        - "traefik.http.services.bbtconnect.loadbalancer.server.port=80"
+        - "traefik.docker.network=traefik_traefik"
+
+  # ======== BACKEND (Node.js API) ========
+  backend:
+    image: bbtconnect-backend:latest
+    build:
+      context: packages/backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - BASE_URL=https://control.bbttransportes.com.br
+      - CORS_ORIGIN=https://control.bbttransportes.com.br
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=bbt_connect
+      - POSTGRES_USER=bbt_user
+      - POSTGRES_PASSWORD=Allg4m3Str8p00L6kdji2ceDB
+      - SESSION_SECRET=bbt-connect-session-secret-2025-production
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=52428800
+      - LOG_LEVEL=info
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX=100
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    networks:
+      - bbt_internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # ======== POSTGRESQL ========
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=bbt_connect
+      - POSTGRES_USER=bbt_user
+      - POSTGRES_PASSWORD=Allg4m3Str8p00L6kdji2ceDB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bbt_internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+  # ======== REDIS ========
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bbt_internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
+
+networks:
+  traefik_traefik:
+    external: true
+  bbt_internal:
+    driver: overlay
