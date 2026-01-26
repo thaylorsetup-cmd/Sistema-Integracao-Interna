@@ -24,7 +24,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_DB=bbt_connect
       - POSTGRES_USER=bbt_user
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bbt_secure_password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-chat.bbttransportes@gmail.com}
@@ -60,7 +60,7 @@ services:
     environment:
       - POSTGRES_DB=bbt_connect
       - POSTGRES_USER=bbt_user
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bbt_secure_password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Executar migracoes automaticamente
