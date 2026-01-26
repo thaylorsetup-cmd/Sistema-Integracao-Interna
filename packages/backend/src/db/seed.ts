@@ -1,41 +1,149 @@
 /**
  * Seed do Banco de Dados
- * Cria usuarios iniciais para testes
+ * Cria usuarios iniciais conforme planilha USUARIOS.xlsx
  */
 import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
 
-// Usuarios iniciais com senha simples (ambiente interno)
+// Usuarios da planilha USUARIOS.xlsx
 const initialUsers = [
   {
-    email: 'admin@bbt.com',
-    nome: 'Administrador',
-    password: 'admin123',
+    email: 'ti.mtz@bbttransportes.com.br',
+    nome: 'Luciano Alves',
+    password: 'bbt@2026',
     role: 'admin' as const,
   },
   {
-    email: 'gestor@bbt.com',
-    nome: 'Gestor Operacional',
-    password: 'bbt123',
-    role: 'gestor' as const,
-  },
-  {
-    email: 'operador@bbt.com',
-    nome: 'Operador',
-    password: 'bbt123',
+    email: 'agregados.mtz@bbttransportes.com.br',
+    nome: 'Sidney Ferreira',
+    password: 'bbt@2026',
     role: 'operacional' as const,
   },
   {
-    email: 'cadastro@bbt.com',
-    nome: 'Analista de Cadastro',
-    password: 'bbt123',
+    email: 'agenciadora@bbttransportes.com.br',
+    nome: 'Agenciadora',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'comercial01.sao@bbttransportes.com.br',
+    nome: 'Mariana Figueiredo',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'comercial02.sao@bbttransportes.com.br',
+    nome: 'Maycon Douglas',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional.sao@bbttransportes.com.br',
+    nome: 'Evandro William Avigo',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional.mtz@bbttransportes.com.br',
+    nome: 'Edcarlos Antonio',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'marcius.fleury@bbttransportes.com.br',
+    nome: 'Marcius Fleury',
+    password: 'bbt@2026',
+    role: 'admin' as const,
+  },
+  {
+    email: 'gr.mtz01@bbttransportes.com.br',
+    nome: 'Jordana Alves',
+    password: 'bbt@2026',
     role: 'cadastro' as const,
   },
   {
-    email: 'comercial@bbt.com',
-    nome: 'Comercial',
-    password: 'bbt123',
-    role: 'comercial' as const,
+    email: 'gr.mtz02@bbttransportes.com.br',
+    nome: 'Jullia de Oliveira',
+    password: 'bbt@2026',
+    role: 'cadastro' as const,
+  },
+  {
+    email: 'gr.mtz03@bbttransportes.com.br',
+    nome: 'Geovanna',
+    password: 'bbt@2026',
+    role: 'cadastro' as const,
+  },
+  {
+    email: 'operacional01.gyn@bbttransportes.com.br',
+    nome: 'Igor Costa',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional01.mtz@bbttransportes.com.br',
+    nome: 'Tainallys Ferreira',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional02.gyn@bbttransportes.com.br',
+    nome: 'Danubia de Sousa',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional04.mtz@bbttransportes.com.br',
+    nome: 'Maria Paula',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional05.mtz@bbttransportes.com.br',
+    nome: 'Mariane Sa',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional09.mtz@bbttransportes.com.br',
+    nome: 'Miqueias Macedo',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'comercial03.gyn@bbttransportes.com.br',
+    nome: 'Bruno Ribeiro',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'gestor.mtz@b4comex.com.br',
+    nome: 'Julia Cavalcante',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional.comex@bbttransportes.com.br',
+    nome: 'Operacao COMEX',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'comercial.comex@bbttransportes.com.br',
+    nome: 'Comercial COMEX',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'coletas.gyn@bbttransportes.com.br',
+    nome: 'Victor Saraiva',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
+  },
+  {
+    email: 'operacional.gyn@bbttransportes.com.br',
+    nome: 'Roberta Alves',
+    password: 'bbt@2026',
+    role: 'operacional' as const,
   },
 ];
 
@@ -52,13 +160,18 @@ export async function seed() {
         .executeTakeFirst();
 
       if (existing) {
-        // Atualizar senha se usuario ja existe
+        // Atualizar senha e dados se usuario ja existe
         await db
           .updateTable('users')
-          .set({ password: user.password })
+          .set({
+            password: user.password,
+            nome: user.nome,
+            role: user.role,
+            ativo: true,
+          })
           .where('email', '=', user.email)
           .execute();
-        logger.info(`Senha atualizada para: ${user.email}`);
+        logger.info(`Usuario atualizado: ${user.email}`);
         continue;
       }
 
@@ -93,4 +206,3 @@ if (isMainModule) {
     .then(() => process.exit(0))
     .catch(() => process.exit(1));
 }
-

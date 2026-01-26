@@ -419,6 +419,90 @@ router.post('/sign-out', async (req, res) => {
 });
 
 /**
+ * PUT /api/auth/change-password
+ * Altera a senha do usuario autenticado
+ */
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Senha atual obrigatoria'),
+  newPassword: z.string().min(3, 'Nova senha deve ter no minimo 3 caracteres'),
+});
+
+router.put('/change-password', requireAuth, async (req, res): Promise<any> => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+
+    if (!authReq.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Nao autenticado',
+      });
+    }
+
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+    // Buscar usuario com senha atual
+    const user = await db
+      .selectFrom('users')
+      .where('id', '=', authReq.user.id)
+      .select(['id', 'email', 'password'])
+      .executeTakeFirst();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario nao encontrado',
+      });
+    }
+
+    // Verificar senha atual
+    if (user.password !== currentPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Senha atual incorreta',
+        message: 'A senha atual informada esta incorreta.',
+      });
+    }
+
+    // Verificar se a nova senha e diferente da atual
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Senha repetida',
+        message: 'A nova senha deve ser diferente da senha atual.',
+      });
+    }
+
+    // Atualizar senha
+    await db
+      .updateTable('users')
+      .set({ password: newPassword })
+      .where('id', '=', authReq.user.id)
+      .execute();
+
+    logger.info(`Senha alterada: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Senha alterada com sucesso',
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dados invalidos',
+        details: error.errors,
+      });
+    }
+
+    logger.error('Erro ao alterar senha:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao alterar senha',
+    });
+  }
+});
+
+/**
  * GET /api/auth/check
  * Verificacao rapida de autenticacao
  */

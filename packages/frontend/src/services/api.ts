@@ -102,6 +102,15 @@ export const authApi = {
     const response = await apiClient.get<ApiResponse>('/auth/permissions');
     return response.data;
   },
+
+  // Alterar senha
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await apiClient.put<ApiResponse>('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
+    return response.data;
+  },
 };
 
 // =====================================================
@@ -464,7 +473,7 @@ export const usersApi = {
   },
 
   // Criar usuario
-  create: async (data: { email: string; nome: string; role: string; filialId?: string }) => {
+  create: async (data: { email: string; nome: string; role: string; password?: string; filialId?: string }) => {
     const response = await apiClient.post<ApiResponse<User>>('/users', data);
     return response.data;
   },
