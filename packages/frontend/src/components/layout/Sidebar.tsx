@@ -23,6 +23,7 @@ interface NavItem {
   label: string;
   badge?: string;
   permission?: keyof Permission;
+  adminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -50,7 +51,7 @@ const navItems: NavItem[] = [
     icon: Tv,
     label: 'TV Display',
     badge: 'LIVE',
-    permission: 'viewTvDisplay',
+    adminOnly: true,
   },
   {
     to: '/auditoria',
@@ -67,14 +68,15 @@ const navItems: NavItem[] = [
 
 export function Sidebar({ className = '' }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   const filteredNavItems = useMemo(() => {
     return navItems.filter((item) => {
+      if (item.adminOnly) return user?.role === 'admin';
       if (!item.permission) return true;
       return hasPermission(item.permission);
     });
-  }, [hasPermission]);
+  }, [hasPermission, user]);
 
   return (
     <>

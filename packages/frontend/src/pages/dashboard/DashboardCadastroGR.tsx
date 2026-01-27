@@ -862,17 +862,8 @@ export function DashboardCadastroGR() {
                             </div>
                             Fila de Cadastros
                         </h1>
-                        <p className="mt-1 text-sm text-slate-400 flex items-center gap-2">
+                        <p className="mt-1 text-sm text-slate-400">
                             Visualize, baixe e aprove os documentos enviados
-                            {isConnected ? (
-                                <span className="flex items-center gap-1 text-emerald-400 text-xs">
-                                    <Wifi className="w-3 h-3" /> Ao vivo
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-1 text-amber-400 text-xs">
-                                    <WifiOff className="w-3 h-3" /> Offline
-                                </span>
-                            )}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">

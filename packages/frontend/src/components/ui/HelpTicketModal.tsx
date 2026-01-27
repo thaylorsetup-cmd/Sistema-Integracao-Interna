@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, X } from 'lucide-react';
 import { cn } from '../../utils/classnames';
 import {
     Dialog,
@@ -100,24 +100,33 @@ export function HelpTicketModal({ open, onOpenChange }: HelpTicketModalProps) {
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent
-                className="max-w-md"
+                className="max-w-md !bg-slate-800 !border-slate-600"
                 onClose={handleClose}
+                showCloseButton={false}
             >
+                <button
+                    type="button"
+                    onClick={handleClose}
+                    className="absolute right-4 top-4 p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105"
+                    aria-label="Fechar"
+                >
+                    <X className="h-4 w-4" />
+                </button>
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white">
                             <MessageCircle className="w-5 h-5" />
                         </div>
-                        <DialogTitle>Central de Ajuda</DialogTitle>
+                        <DialogTitle className="!text-white">Central de Ajuda</DialogTitle>
                     </div>
-                    <DialogDescription>
+                    <DialogDescription className="!text-slate-400">
                         Descreva seu problema, dúvida ou sugestão. Nossa equipe irá analisar e responder em breve.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
+                        <label className="text-sm font-medium text-slate-200">
                             Título *
                         </label>
                         <Input
@@ -125,11 +134,12 @@ export function HelpTicketModal({ open, onOpenChange }: HelpTicketModalProps) {
                             value={formData.titulo}
                             onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                             disabled={isSubmitting}
+                            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
+                        <label className="text-sm font-medium text-slate-200">
                             Categoria *
                         </label>
                         <Select
@@ -138,11 +148,12 @@ export function HelpTicketModal({ open, onOpenChange }: HelpTicketModalProps) {
                             onChange={(value) => setFormData({ ...formData, categoria: value as typeof formData.categoria })}
                             placeholder="Selecione uma categoria"
                             disabled={isSubmitting}
+                            className="bg-slate-700 border-slate-600 text-white"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
+                        <label className="text-sm font-medium text-slate-200">
                             Descrição *
                         </label>
                         <Textarea
@@ -151,16 +162,17 @@ export function HelpTicketModal({ open, onOpenChange }: HelpTicketModalProps) {
                             onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                             rows={4}
                             disabled={isSubmitting}
-                            className="resize-none"
+                            className="resize-none bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
                         />
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="!border-slate-700">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleClose}
                             disabled={isSubmitting}
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
                         >
                             Cancelar
                         </Button>
