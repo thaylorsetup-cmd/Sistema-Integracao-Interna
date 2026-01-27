@@ -149,6 +149,7 @@ export function HelpTicketModal({ open, onOpenChange }: HelpTicketModalProps) {
                             placeholder="Selecione uma categoria"
                             disabled={isSubmitting}
                             className="bg-slate-700 border-slate-600 text-white"
+                            dropdownClassName="bg-slate-700 border-slate-600 text-white"
                         />
                     </div>
 

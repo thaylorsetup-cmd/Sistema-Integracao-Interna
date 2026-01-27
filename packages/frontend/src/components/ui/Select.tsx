@@ -18,6 +18,7 @@ export interface SelectProps {
   error?: string;
   disabled?: boolean;
   className?: string;
+  dropdownClassName?: string;
   id?: string;
 }
 
@@ -33,6 +34,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
       error,
       disabled = false,
       className,
+      dropdownClassName,
       id,
     },
     ref
@@ -116,7 +118,10 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
 
           {isOpen && (
             <div
-              className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg"
+              className={cn(
+                "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg",
+                dropdownClassName
+              )}
               role="listbox"
             >
               {options.map((option) => (
@@ -127,7 +132,8 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
                   disabled={option.disabled}
                   className={cn(
                     'flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50',
-                    option.value === selectedValue && 'bg-gray-50'
+                    option.value === selectedValue && 'bg-gray-50',
+                    dropdownClassName && 'hover:bg-slate-600'
                   )}
                   role="option"
                   aria-selected={option.value === selectedValue}
