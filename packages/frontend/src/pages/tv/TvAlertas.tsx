@@ -25,15 +25,7 @@ interface Alerta {
     timestamp: Date;
 }
 
-const MOCK_ALERTAS: Alerta[] = [
-    { id: '1', tipo: 'critico', titulo: 'Parada Não Autorizada', mensagem: 'Veículo parado há mais de 30 minutos em área não programada', veiculo: 'GOI-2B34', localizacao: 'BR-153, KM 245', timestamp: new Date(Date.now() - 5 * 60000) },
-    { id: '2', tipo: 'alerta', titulo: 'Atraso na Entrega', mensagem: 'Previsão de atraso de 2 horas devido ao trânsito', veiculo: 'LOG-9E12', localizacao: 'São Paulo - Marginal Tietê', timestamp: new Date(Date.now() - 15 * 60000) },
-    { id: '7', tipo: 'alerta', titulo: 'Cadastro com Atraso', mensagem: '2 motivos de atraso registrados - Aguardando documento ANTT atualizado', veiculo: 'GOI-2B34', timestamp: new Date(Date.now() - 10 * 60000) },
-    { id: '3', tipo: 'info', titulo: 'Documentação Pendente', mensagem: 'Aguardando aprovação de CNH renovada', veiculo: 'FRT-7F89', timestamp: new Date(Date.now() - 30 * 60000) },
-    { id: '4', tipo: 'sucesso', titulo: 'Entrega Concluída', mensagem: 'Carga entregue com sucesso e documentos assinados', veiculo: 'CAR-3A56', localizacao: 'Brasília - DF', timestamp: new Date(Date.now() - 45 * 60000) },
-    { id: '5', tipo: 'alerta', titulo: 'Manutenção Programada', mensagem: 'Veículo próximo da data de revisão obrigatória', veiculo: 'TRN-5F67', timestamp: new Date(Date.now() - 60 * 60000) },
-    { id: '6', tipo: 'critico', titulo: 'Desvio de Rota', mensagem: 'Veículo saiu da rota programada', veiculo: 'BEN-8H90', localizacao: 'GO-060, KM 78', timestamp: new Date(Date.now() - 2 * 60000) },
-];
+const MOCK_ALERTAS: Alerta[] = [];
 
 function formatTimeAgo(date: Date): string {
     const minutes = Math.floor((Date.now() - date.getTime()) / 60000);

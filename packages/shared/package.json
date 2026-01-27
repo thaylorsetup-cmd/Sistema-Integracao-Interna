@@ -1,6 +1,6 @@
 {
   "name": "@guardiao/shared",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Tipos e constantes compartilhados - Guardião V2",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

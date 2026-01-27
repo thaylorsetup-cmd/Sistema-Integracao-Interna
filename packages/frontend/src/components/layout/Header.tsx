@@ -13,7 +13,7 @@ export function Header({ className = '' }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const notificationCount = 3;
+  const notificationCount = 0;
 
   const handleLogout = () => {
     logout();
@@ -82,33 +82,9 @@ export function Header({ className = '' }: HeaderProps) {
                       Notificações
                     </h3>
                   </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {[
-                      { title: 'Nova carga registrada', time: 'Há 5 minutos', type: 'success' },
-                      { title: 'Auditoria pendente', time: 'Há 1 hora', type: 'warning' },
-                      { title: 'Sistema atualizado', time: 'Há 2 horas', type: 'info' },
-                    ].map((notif, idx) => (
-                      <div key={idx} className="p-4 hover:bg-white/5 cursor-pointer border-b border-white/5 transition-colors duration-200 flex items-start gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${notif.type === 'success' ? 'bg-emerald-500' :
-                          notif.type === 'warning' ? 'bg-amber-500' : 'bg-benfica-blue'
-                          }`} />
-                        <div>
-                          <p className="text-sm font-semibold text-white">{notif.title}</p>
-                          <p className="text-xs text-slate-400 mt-1">{notif.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 text-center border-t border-white/10">
-                    <button
-                      onClick={() => {
-                        setShowNotifications(false);
-                        navigate('/notificacoes');
-                      }}
-                      className="text-sm text-benfica-blue hover:text-blue-400 font-bold transition-colors"
-                    >
-                      Ver todas as notificações
-                    </button>
+                  <div className="p-8 text-center">
+                    <Bell className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                    <p className="text-sm text-slate-400">Nenhuma notificação</p>
                   </div>
                 </div>
               )}
