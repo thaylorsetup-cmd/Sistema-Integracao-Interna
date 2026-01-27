@@ -36,131 +36,135 @@ function DefaultRedirect() {
   return <Navigate to={getDefaultRoute(user.role)} replace />;
 }
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
+        <ErrorBoundary>
+          <AuthProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={<Login />} />
 
-              {/* TV Display - Legacy (redirects to new) */}
-              <Route path="/tv-display" element={<Suspense fallback={<Loading />}><TvDisplay /></Suspense>} />
+                {/* TV Display - Legacy (redirects to new) */}
+                <Route path="/tv-display" element={<Suspense fallback={<Loading />}><TvDisplay /></Suspense>} />
 
-              {/* TV Pages - Full screen, no layout */}
-              <Route path="/tv/mapa" element={<Suspense fallback={<Loading />}><TvMapa /></Suspense>} />
-              <Route path="/tv/kpis" element={<Suspense fallback={<Loading />}><TvKpis /></Suspense>} />
-              <Route path="/tv/cadastros" element={<Suspense fallback={<Loading />}><TvCadastros /></Suspense>} />
-              <Route path="/tv/alertas" element={<Suspense fallback={<Loading />}><TvAlertas /></Suspense>} />
+                {/* TV Pages - Full screen, no layout */}
+                <Route path="/tv/mapa" element={<Suspense fallback={<Loading />}><TvMapa /></Suspense>} />
+                <Route path="/tv/kpis" element={<Suspense fallback={<Loading />}><TvKpis /></Suspense>} />
+                <Route path="/tv/cadastros" element={<Suspense fallback={<Loading />}><TvCadastros /></Suspense>} />
+                <Route path="/tv/alertas" element={<Suspense fallback={<Loading />}><TvAlertas /></Suspense>} />
 
-              {/* Protected Routes with Layout */}
-              <Route
-                path="/dashboard/operador"
-                element={
-                  <ProtectedRoute permission="viewDashboardOperador">
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <DashboardOperador />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/gestao"
-                element={
-                  <ProtectedRoute permission="viewDashboardGestao">
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <DashboardGestao />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/cadastro-gr"
-                element={
-                  <ProtectedRoute permission="viewDashboardCadastroGR">
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <DashboardCadastroGR />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/kpi/:tipo"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <KpiDetalhes />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/auditoria"
-                element={
-                  <ProtectedRoute permission="viewAuditoria">
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <Auditoria />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/notificacoes"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <Notificacoes />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/configuracoes"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <Configuracoes />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tickets"
-                element={
-                  <ProtectedRoute permission="viewConfiguracoesSistema">
-                    <MainLayout>
-                      <Suspense fallback={<Loading />}>
-                        <Tickets />
-                      </Suspense>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                {/* Protected Routes with Layout */}
+                <Route
+                  path="/dashboard/operador"
+                  element={
+                    <ProtectedRoute permission="viewDashboardOperador">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <DashboardOperador />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/gestao"
+                  element={
+                    <ProtectedRoute permission="viewDashboardGestao">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <DashboardGestao />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/cadastro-gr"
+                  element={
+                    <ProtectedRoute permission="viewDashboardCadastroGR">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <DashboardCadastroGR />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/kpi/:tipo"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <KpiDetalhes />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/auditoria"
+                  element={
+                    <ProtectedRoute permission="viewAuditoria">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <Auditoria />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/notificacoes"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <Notificacoes />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/configuracoes"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <Configuracoes />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tickets"
+                  element={
+                    <ProtectedRoute permission="viewConfiguracoesSistema">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <Tickets />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Redirect root to user's default dashboard */}
-              <Route path="/" element={<DefaultRedirect />} />
+                {/* Redirect root to user's default dashboard */}
+                <Route path="/" element={<DefaultRedirect />} />
 
-              {/* Catch all - redirect to user's default dashboard */}
-              <Route path="*" element={<DefaultRedirect />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+                {/* Catch all - redirect to user's default dashboard */}
+                <Route path="*" element={<DefaultRedirect />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
+        </ErrorBoundary>
       </ToastProvider>
     </QueryClientProvider>
   );

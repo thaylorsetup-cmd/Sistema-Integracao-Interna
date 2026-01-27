@@ -138,8 +138,8 @@ function KanbanCard({
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{kpi.title}</span>
         </div>
         <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${kpi.changeType === 'positive'
-            ? 'text-emerald-400 bg-emerald-500/10'
-            : 'text-red-400 bg-red-500/10'
+          ? 'text-emerald-400 bg-emerald-500/10'
+          : 'text-red-400 bg-red-500/10'
           }`}>
           {kpi.changeType === 'positive' ? (
             <ArrowUpRight className="w-3 h-3" />
@@ -331,7 +331,7 @@ export function DashboardGestao() {
                   <BarChart3 className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-semibold text-amber-300/70 uppercase tracking-wider">Média por Cadastro</span>
                 </div>
-                <p className="text-3xl font-black text-white">{delayStats.averageDelaysPerSubmission.toFixed(1)}</p>
+                <p className="text-3xl font-black text-white">{Number(delayStats.averageDelaysPerSubmission || 0).toFixed(1)}</p>
                 <p className="text-xs text-slate-400 mt-1">atrasos em média</p>
               </div>
 

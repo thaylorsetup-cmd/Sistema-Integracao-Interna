@@ -150,8 +150,8 @@ export interface Submission {
 }
 
 export interface CreateSubmissionData {
-  nomeMotorista: string;
-  cpf: string;
+  nomeMotorista?: string;
+  cpf?: string;
   telefone?: string;
   email?: string;
   placa?: string;

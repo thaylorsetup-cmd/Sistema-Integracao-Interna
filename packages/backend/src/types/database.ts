@@ -81,8 +81,8 @@ export interface SubmissionsTable {
   id: Generated<string>;
 
   // Dados do motorista
-  nome_motorista: string;
-  cpf: string;
+  nome_motorista: string | null;
+  cpf: string | null;
   telefone: string | null;
   email: string | null;
 

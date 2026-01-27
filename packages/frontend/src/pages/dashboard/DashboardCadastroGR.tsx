@@ -393,7 +393,7 @@ function DetailModal({
                                                 </div>
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <button
-                                                        onClick={() => window.open(`/api/documents/${file.id}/view`, '_blank')}
+                                                        onClick={() => window.open(`/api/documents/${file.id}/download`, '_blank')}
                                                         className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                                         title="Visualizar"
                                                     >
@@ -771,8 +771,21 @@ export function DashboardCadastroGR() {
     // Ações
     const handleAction = async (id: string, action: string) => {
         if (action === 'view') {
-            const sub = submissions.find(s => s.id === id);
-            if (sub) setSelectedSubmission(sub);
+            // Buscar detalhes completos (incluindo documentos) via API
+            try {
+                const response = await filaApi.get(id);
+                if (response.success && response.data) {
+                    setSelectedSubmission(mapApiSubmission(response.data));
+                } else {
+                    // Fallback: usar dados locais
+                    const sub = submissions.find(s => s.id === id);
+                    if (sub) setSelectedSubmission(sub);
+                }
+            } catch {
+                // Fallback em caso de erro de rede
+                const sub = submissions.find(s => s.id === id);
+                if (sub) setSelectedSubmission(sub);
+            }
             return;
         }
 

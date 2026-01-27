@@ -89,13 +89,7 @@ export function DashboardOperador() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Campos obrigatórios do motorista
-  const [nomeMotorista, setNomeMotorista] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [telefoneMotorista, setTelefoneMotorista] = useState('');
-  const [emailMotorista, setEmailMotorista] = useState('');
-  const [placa, setPlaca] = useState('');
-  const [tipoVeiculo, setTipoVeiculo] = useState('');
+
 
   // Campos de informação adicional
   const [origem, setOrigem] = useState('');
@@ -112,8 +106,7 @@ export function DashboardOperador() {
   // Verificar documentos obrigatórios
   const requiredDocs = DOCUMENT_TYPES.filter(d => d.required);
   const completedDocs = requiredDocs.filter(d => getFilesForType(d.id).length > 0);
-  const motoristaFieldsComplete = nomeMotorista.trim().length >= 2 && cpf.trim().length >= 11;
-  const allRequiredComplete = motoristaFieldsComplete && completedDocs.length === requiredDocs.length && unclassifiedFiles.length === 0;
+  const allRequiredComplete = completedDocs.length === requiredDocs.length && unclassifiedFiles.length === 0;
 
   const processFiles = useCallback((fileList: FileList | File[]) => {
     const newFiles: UploadedFile[] = [];
@@ -212,12 +205,7 @@ export function DashboardOperador() {
     try {
       // 1. Criar o cadastro na fila
       const createResponse = await filaApi.create({
-        nomeMotorista: nomeMotorista.trim(),
-        cpf: cpf.trim(),
-        telefone: telefoneMotorista || undefined,
-        email: emailMotorista || undefined,
-        placa: placa || undefined,
-        tipoVeiculo: tipoVeiculo || undefined,
+
         origem: origem || undefined,
         destino: destino || undefined,
         localizacaoAtual: localizacaoAtual || undefined,
@@ -337,13 +325,13 @@ export function DashboardOperador() {
 
   return (
     <Container>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg mb-3">
             <FileUp className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white">Cadastro de Motorista</h1>
+          <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
           <p className="text-slate-500 text-sm flex items-center justify-center gap-1">
             <Sparkles className="w-3 h-3" />
             Arraste e classifique os documentos
@@ -370,574 +358,465 @@ export function DashboardOperador() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Dados do Motorista */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
-            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <User className="w-4 h-4 text-emerald-400" />
-              Dados do Motorista
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Nome do Motorista <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={nomeMotorista}
-                  onChange={(e) => setNomeMotorista(e.target.value)}
-                  placeholder="Nome completo"
-                  required
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                />
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  CPF <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={cpf}
-                  onChange={(e) => setCpf(e.target.value)}
-                  placeholder="000.000.000-00"
-                  required
-                  maxLength={14}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-                />
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Telefone
-                </label>
-                <input
-                  type="text"
-                  value={telefoneMotorista}
-                  onChange={(e) => setTelefoneMotorista(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  E-mail
-                </label>
-                <input
-                  type="email"
-                  value={emailMotorista}
-                  onChange={(e) => setEmailMotorista(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Placa do Veículo
-                </label>
-                <input
-                  type="text"
-                  value={placa}
-                  onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-                  placeholder="ABC1D23"
-                  maxLength={10}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Tipo de Veículo
-                </label>
-                <select
-                  value={tipoVeiculo}
-                  onChange={(e) => setTipoVeiculo(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
-                >
-                  <option value="" className="bg-slate-900">Selecione...</option>
-                  <option value="truck" className="bg-slate-900">Caminhão</option>
-                  <option value="carreta" className="bg-slate-900">Carreta</option>
-                  <option value="bitrem" className="bg-slate-900">Bitrem</option>
-                  <option value="rodotrem" className="bg-slate-900">Rodotrem</option>
-                  <option value="van" className="bg-slate-900">Van</option>
-                  <option value="utilitario" className="bg-slate-900">Utilitário</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Campos de Informação Adicional */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
-            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-benfica-blue" />
-              Informações da Operação
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Origem
-                </label>
-                <input
-                  type="text"
-                  value={origem}
-                  onChange={(e) => setOrigem(e.target.value)}
-                  placeholder="Cidade/Estado de origem"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Destino
-                </label>
-                <input
-                  type="text"
-                  value={destino}
-                  onChange={(e) => setDestino(e.target.value)}
-                  placeholder="Cidade/Estado de destino"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Localização Atual
-                </label>
-                <input
-                  type="text"
-                  value={localizacaoAtual}
-                  onChange={(e) => setLocalizacaoAtual(e.target.value)}
-                  placeholder="Localização atual do motorista"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">
-                  Tipo de Mercadoria
-                </label>
-                <select
-                  value={tipoMercadoria}
-                  onChange={(e) => setTipoMercadoria(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
-                >
-                  <option value="" className="bg-slate-900">Selecione...</option>
-                  <option value="carga-seca" className="bg-slate-900">Carga Seca</option>
-                  <option value="refrigerada" className="bg-slate-900">Refrigerada</option>
-                  <option value="perigosa" className="bg-slate-900">Perigosa</option>
-                  <option value="fragil" className="bg-slate-900">Frágil</option>
-                  <option value="outros" className="bg-slate-900">Outros</option>
-                </select>
-
-                {tipoMercadoria === 'outros' && (
-                  <input
-                    type="text"
-                    value={tipoMercadoriaOutro}
-                    onChange={(e) => setTipoMercadoriaOutro(e.target.value)}
-                    placeholder="Especifique o tipo de mercadoria"
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors mt-2"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Área de Drop */}
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${isDragging
-              ? 'border-benfica-blue bg-benfica-blue/10 scale-[1.02]'
-              : 'border-white/20 bg-white/5 hover:border-white/40'
-              }`}
-          >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-2">
+              Origem
+            </label>
             <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
-              onChange={handleFileSelect}
-              className="hidden"
+              type="text"
+              value={origem}
+              onChange={(e) => setOrigem(e.target.value)}
+              placeholder="Cidade/Estado de origem"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
             />
-            <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${isDragging ? 'bg-benfica-blue' : 'bg-white/10'
-              }`}>
-              <Upload className={`w-8 h-8 ${isDragging ? 'text-white' : 'text-slate-400'}`} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-1">
-              {isDragging ? 'Solte aqui!' : 'Arraste os documentos'}
-            </h3>
-            <p className="text-sm text-slate-500">ou clique para selecionar • PDF, JPG, PNG</p>
           </div>
 
-          {/* MODAL DE CLASSIFICAÇÃO */}
-          {classifyingFile && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-white/20 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-                {/* Header do Modal */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-benfica-blue rounded-lg flex items-center justify-center">
-                      <Tag className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Qual documento é esse?</h3>
-                      <p className="text-xs text-slate-400 truncate max-w-[250px]">
-                        {classifyingFile.preview ? '📷' : '📄'} {classifyingFile.file.name}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setClassifyingFileId(null); setShowOthersInput(false); }}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-slate-400" />
-                  </button>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-2">
+              Destino
+            </label>
+            <input
+              type="text"
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              placeholder="Cidade/Estado de destino"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-2">
+              Localização Atual
+            </label>
+            <input
+              type="text"
+              value={localizacaoAtual}
+              onChange={(e) => setLocalizacaoAtual(e.target.value)}
+              placeholder="Localização atual do motorista"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-2">
+              Tipo de Mercadoria
+            </label>
+            <select
+              value={tipoMercadoria}
+              onChange={(e) => setTipoMercadoria(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
+            >
+              <option value="" className="bg-slate-900">Selecione...</option>
+              <option value="carga-seca" className="bg-slate-900">Carga Seca</option>
+              <option value="refrigerada" className="bg-slate-900">Refrigerada</option>
+              <option value="perigosa" className="bg-slate-900">Perigosa</option>
+              <option value="fragil" className="bg-slate-900">Frágil</option>
+              <option value="outros" className="bg-slate-900">Outros</option>
+            </select>
+
+            {tipoMercadoria === 'outros' && (
+              <input
+                type="text"
+                value={tipoMercadoriaOutro}
+                onChange={(e) => setTipoMercadoriaOutro(e.target.value)}
+                placeholder="Especifique o tipo de mercadoria"
+                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors mt-2"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Área de Drop */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${isDragging
+          ? 'border-benfica-blue bg-benfica-blue/10 scale-[1.02]'
+          : 'border-white/20 bg-white/5 hover:border-white/40'
+          }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,.webp"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${isDragging ? 'bg-benfica-blue' : 'bg-white/10'
+          }`}>
+          <Upload className={`w-8 h-8 ${isDragging ? 'text-white' : 'text-slate-400'}`} />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-1">
+          {isDragging ? 'Solte aqui!' : 'Arraste os documentos'}
+        </h3>
+        <p className="text-sm text-slate-500">ou clique para selecionar • PDF, JPG, PNG</p>
+      </div>
+
+      {/* MODAL DE CLASSIFICAÇÃO */}
+      {classifyingFile && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-white/20 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Header do Modal */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-benfica-blue rounded-lg flex items-center justify-center">
+                  <Tag className="w-5 h-5 text-white" />
                 </div>
-
-                {/* Preview do arquivo */}
-                {classifyingFile.preview && (
-                  <div className="mb-4 rounded-lg overflow-hidden bg-slate-800 h-32 flex items-center justify-center">
-                    <img
-                      src={classifyingFile.preview}
-                      alt="Preview"
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  </div>
-                )}
-
-                {!showOthersInput ? (
-                  <>
-                    {/* Grid de Tipos - Obrigatórios */}
-                    <p className="text-xs text-red-400 font-bold mb-2">OBRIGATÓRIOS</p>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {DOCUMENT_TYPES.filter(d => d.required).map((docType) => {
-                        const colors = DOC_COLORS[docType.color];
-                        const Icon = docType.icon;
-                        const count = getFilesForType(docType.id).length;
-
-                        return (
-                          <button
-                            key={docType.id}
-                            type="button"
-                            onClick={() => classifyFile(classifyingFile.id, docType.id)}
-                            className={`p-3 rounded-xl border-2 transition-all hover:scale-105 hover:border-white/50 ${count > 0 ? `${colors.border} bg-white/5` : 'border-white/10 bg-white/5'
-                              }`}
-                          >
-                            <div className={`w-8 h-8 mx-auto rounded-lg ${colors.bg} flex items-center justify-center mb-1`}>
-                              <Icon className="w-4 h-4 text-white" />
-                            </div>
-                            <p className="text-xs font-bold text-white">{docType.shortLabel}</p>
-                            {count > 0 && (
-                              <p className="text-[10px] text-emerald-400">+{count} já</p>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Opcionais */}
-                    <p className="text-xs text-slate-500 font-bold mb-2">OPCIONAIS</p>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {DOCUMENT_TYPES.filter(d => !d.required).map((docType) => {
-                        const colors = DOC_COLORS[docType.color];
-                        const Icon = docType.icon;
-
-                        return (
-                          <button
-                            key={docType.id}
-                            type="button"
-                            onClick={() => classifyFile(classifyingFile.id, docType.id)}
-                            className="p-3 rounded-xl border-2 border-white/10 bg-white/5 hover:border-white/30 transition-all"
-                          >
-                            <div className={`w-8 h-8 mx-auto rounded-lg ${colors.bg} flex items-center justify-center mb-1`}>
-                              <Icon className="w-4 h-4 text-white" />
-                            </div>
-                            <p className="text-xs font-bold text-slate-400">{docType.shortLabel}</p>
-                          </button>
-                        );
-                      })}
-
-                      {/* Botão OUTROS */}
-                      <button
-                        type="button"
-                        onClick={handleOthersClick}
-                        className="p-3 rounded-xl border-2 border-dashed border-pink-500/50 bg-pink-500/10 hover:bg-pink-500/20 transition-all"
-                      >
-                        <div className="w-8 h-8 mx-auto rounded-lg bg-pink-500 flex items-center justify-center mb-1">
-                          <Edit3 className="w-4 h-4 text-white" />
-                        </div>
-                        <p className="text-xs font-bold text-pink-400">OUTROS</p>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  /* Input para OUTROS */
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-white font-bold mb-2">
-                        Descreva o documento:
-                      </label>
-                      <input
-                        type="text"
-                        value={othersDescription}
-                        onChange={(e) => setOthersDescription(e.target.value)}
-                        placeholder="Ex: Ficha de ativação do rastreador"
-                        autoFocus
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowOthersInput(false)}
-                        className="flex-1 py-3 rounded-xl border border-white/20 text-white font-bold hover:bg-white/10 transition-colors"
-                      >
-                        Voltar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={confirmOthers}
-                        disabled={!othersDescription.trim()}
-                        className={`flex-1 py-3 rounded-xl font-bold transition-colors ${othersDescription.trim()
-                          ? 'bg-pink-500 text-white hover:bg-pink-600'
-                          : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                          }`}
-                      >
-                        Confirmar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botão de remover arquivo */}
-                <button
-                  type="button"
-                  onClick={() => removeFile(classifyingFile.id)}
-                  className="w-full mt-4 py-2 text-red-400 text-sm hover:text-red-300 transition-colors"
-                >
-                  Remover este arquivo
-                </button>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Qual documento é esse?</h3>
+                  <p className="text-xs text-slate-400 truncate max-w-[250px]">
+                    {classifyingFile.preview ? '📷' : '📄'} {classifyingFile.file.name}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Arquivos Não Classificados */}
-          {unclassifiedFiles.length > 0 && !classifyingFileId && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                Clique para classificar ({unclassifiedFiles.length})
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {unclassifiedFiles.map((file) => (
-                  <button
-                    key={file.id}
-                    type="button"
-                    onClick={() => setClassifyingFileId(file.id)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors group"
-                  >
-                    {file.preview ? <Image className="w-4 h-4" /> : <File className="w-4 h-4" />}
-                    <span className="text-sm truncate max-w-[150px]">{file.file.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Checklist de Documentos Obrigatórios */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
-            <h3 className="text-sm font-bold text-white mb-3">Documentos Obrigatórios</h3>
-            <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-              {requiredDocs.map((doc) => {
-                const docFiles = getFilesForType(doc.id);
-                const isComplete = docFiles.length > 0;
-                const colors = DOC_COLORS[doc.color];
-                const Icon = doc.icon;
-
-                return (
-                  <div
-                    key={doc.id}
-                    className={`p-2 rounded-lg border text-center transition-all ${isComplete ? `${colors.border} bg-white/5` : 'border-white/10 bg-white/5 opacity-50'
-                      }`}
-                  >
-                    <div className={`w-6 h-6 mx-auto rounded ${isComplete ? colors.bg : 'bg-slate-700'} flex items-center justify-center mb-1`}>
-                      {isComplete ? <Check className="w-3 h-3 text-white" /> : <Icon className="w-3 h-3 text-white/50" />}
-                    </div>
-                    <p className={`text-[10px] font-bold ${isComplete ? colors.text : 'text-slate-500'}`}>
-                      {doc.shortLabel}
-                    </p>
-                    {docFiles.length > 0 && (
-                      <p className="text-[9px] text-emerald-400">{docFiles.length} ✓</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Arquivos Classificados */}
-          {files.filter(f => f.type !== null).length > 0 && !isSubmitting && (
-            <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
-              <h3 className="text-sm font-bold text-slate-400 mb-3">
-                Arquivos Prontos ({files.filter(f => f.type !== null).length})
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {files.filter(f => f.type !== null).map((file) => {
-                  const docType = DOCUMENT_TYPES.find(d => d.id === file.type);
-                  const colors = file.type === 'outros' ? DOC_COLORS.pink : DOC_COLORS[docType?.color || 'slate'];
-                  const label = file.type === 'outros' ? file.customDescription : docType?.shortLabel;
-
-                  return (
-                    <div key={file.id} className="relative group">
-                      <div className={`flex items-center gap-2 px-2 py-1 rounded-lg bg-white/10 border ${
-                        file.uploadStatus === 'success'
-                          ? 'border-emerald-500/50'
-                          : file.uploadStatus === 'error'
-                          ? 'border-red-500/50'
-                          : `${colors.border}/30`
-                      }`}>
-                        {file.uploadStatus === 'success' && <Check className="w-3 h-3 text-emerald-400" />}
-                        {file.uploadStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
-                        <span className={`text-xs font-bold ${
-                          file.uploadStatus === 'success'
-                            ? 'text-emerald-400'
-                            : file.uploadStatus === 'error'
-                            ? 'text-red-400'
-                            : colors.text
-                        }`}>{label}</span>
-                        <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{file.file.name}</span>
-                      </div>
-                      {!isSubmitting && (
-                        <button
-                          type="button"
-                          onClick={() => removeFile(file.id)}
-                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-2 h-2 text-white" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Mensagem de Erro */}
-          {!allRequiredComplete && !errorMessage && (
-            <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-500/10 rounded-lg px-4 py-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>
-                {!motoristaFieldsComplete
-                  ? 'Preencha o nome e CPF do motorista'
-                  : unclassifiedFiles.length > 0
-                  ? `Classifique ${unclassifiedFiles.length} documento${unclassifiedFiles.length > 1 ? 's' : ''}`
-                  : `Faltam ${requiredDocs.length - completedDocs.length} documentos obrigatórios`
-                }
-              </span>
-            </div>
-          )}
-
-          {/* Erro de Upload */}
-          {errorMessage && (
-            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 rounded-lg px-4 py-2 border border-red-500/30">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{errorMessage}</span>
               <button
                 type="button"
-                onClick={() => setErrorMessage(null)}
-                className="ml-auto p-1 hover:bg-white/10 rounded"
+                onClick={() => { setClassifyingFileId(null); setShowOthersInput(false); }}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-          )}
 
-          {/* Progresso de Upload */}
-          {isSubmitting && (
-            <div className="bg-benfica-blue/10 border border-benfica-blue/30 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 text-benfica-blue animate-spin" />
-                  <span className="text-sm text-white font-medium">{uploadStatus}</span>
-                </div>
-                <span className="text-sm font-bold text-benfica-blue">{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-benfica-blue to-blue-400 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
+            {/* Preview do arquivo */}
+            {classifyingFile.preview && (
+              <div className="mb-4 rounded-lg overflow-hidden bg-slate-800 h-32 flex items-center justify-center">
+                <img
+                  src={classifyingFile.preview}
+                  alt="Preview"
+                  className="max-h-full max-w-full object-contain"
                 />
               </div>
-              {/* Status individual dos arquivos */}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {files.filter(f => f.type !== null).map((file) => (
-                  <div
-                    key={file.id}
-                    className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
-                      file.uploadStatus === 'success'
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : file.uploadStatus === 'error'
-                        ? 'bg-red-500/20 text-red-400'
-                        : file.uploadStatus === 'uploading'
-                        ? 'bg-benfica-blue/20 text-benfica-blue'
-                        : 'bg-slate-700/50 text-slate-400'
-                    }`}
-                  >
-                    {file.uploadStatus === 'uploading' && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {file.uploadStatus === 'success' && <Check className="w-3 h-3" />}
-                    {file.uploadStatus === 'error' && <X className="w-3 h-3" />}
-                    <span className="truncate max-w-[100px]">{file.file.name}</span>
-                    {file.uploadStatus === 'uploading' && file.uploadProgress !== undefined && (
-                      <span className="ml-1">{file.uploadProgress}%</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Botão de Enviar */}
-          <button
-            type="submit"
-            disabled={!allRequiredComplete || isSubmitting}
-            className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all duration-300 ${allRequiredComplete && !isSubmitting
-              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:opacity-90 shadow-lg shadow-emerald-500/30 hover:scale-[1.02]'
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-              }`}
-          >
-            {isSubmitting ? (
-              <><Loader2 className="w-6 h-6 animate-spin" /> {uploadStatus || 'Enviando...'}</>
-            ) : (
-              <><Send className="w-6 h-6" /> Enviar Cadastro</>
             )}
-          </button>
 
-          {/* Botão para Tentar Novamente (se houve erro) */}
-          {errorMessage && files.some(f => f.uploadStatus === 'error') && (
+            {!showOthersInput ? (
+              <>
+                {/* Grid de Tipos - Obrigatórios */}
+                <p className="text-xs text-red-400 font-bold mb-2">OBRIGATÓRIOS</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                  {DOCUMENT_TYPES.filter(d => d.required).map((docType) => {
+                    const colors = DOC_COLORS[docType.color];
+                    const Icon = docType.icon;
+                    const count = getFilesForType(docType.id).length;
+
+                    return (
+                      <button
+                        key={docType.id}
+                        type="button"
+                        onClick={() => classifyFile(classifyingFile.id, docType.id)}
+                        className={`p-3 rounded-xl border-2 transition-all hover:scale-105 hover:border-white/50 ${count > 0 ? `${colors.border} bg-white/5` : 'border-white/10 bg-white/5'
+                          }`}
+                      >
+                        <div className={`w-8 h-8 mx-auto rounded-lg ${colors.bg} flex items-center justify-center mb-1`}>
+                          <Icon className="w-4 h-4 text-white" />
+                        </div>
+                        <p className="text-xs font-bold text-white">{docType.shortLabel}</p>
+                        {count > 0 && (
+                          <p className="text-[10px] text-emerald-400">+{count} já</p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Opcionais */}
+                <p className="text-xs text-slate-500 font-bold mb-2">OPCIONAIS</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                  {DOCUMENT_TYPES.filter(d => !d.required).map((docType) => {
+                    const colors = DOC_COLORS[docType.color];
+                    const Icon = docType.icon;
+
+                    return (
+                      <button
+                        key={docType.id}
+                        type="button"
+                        onClick={() => classifyFile(classifyingFile.id, docType.id)}
+                        className="p-3 rounded-xl border-2 border-white/10 bg-white/5 hover:border-white/30 transition-all"
+                      >
+                        <div className={`w-8 h-8 mx-auto rounded-lg ${colors.bg} flex items-center justify-center mb-1`}>
+                          <Icon className="w-4 h-4 text-white" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-400">{docType.shortLabel}</p>
+                      </button>
+                    );
+                  })}
+
+                  {/* Botão OUTROS */}
+                  <button
+                    type="button"
+                    onClick={handleOthersClick}
+                    className="p-3 rounded-xl border-2 border-dashed border-pink-500/50 bg-pink-500/10 hover:bg-pink-500/20 transition-all"
+                  >
+                    <div className="w-8 h-8 mx-auto rounded-lg bg-pink-500 flex items-center justify-center mb-1">
+                      <Edit3 className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-xs font-bold text-pink-400">OUTROS</p>
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Input para OUTROS */
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white font-bold mb-2">
+                    Descreva o documento:
+                  </label>
+                  <input
+                    type="text"
+                    value={othersDescription}
+                    onChange={(e) => setOthersDescription(e.target.value)}
+                    placeholder="Ex: Ficha de ativação do rastreador"
+                    autoFocus
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOthersInput(false)}
+                    className="flex-1 py-3 rounded-xl border border-white/20 text-white font-bold hover:bg-white/10 transition-colors"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmOthers}
+                    disabled={!othersDescription.trim()}
+                    className={`flex-1 py-3 rounded-xl font-bold transition-colors ${othersDescription.trim()
+                      ? 'bg-pink-500 text-white hover:bg-pink-600'
+                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                      }`}
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Botão de remover arquivo */}
             <button
               type="button"
-              onClick={() => {
-                // Resetar status dos arquivos com erro para tentar novamente
-                setFiles(prev => prev.map(f =>
-                  f.uploadStatus === 'error'
-                    ? { ...f, uploadStatus: 'pending', uploadProgress: undefined, errorMessage: undefined }
-                    : f
-                ));
-                setErrorMessage(null);
-              }}
-              className="w-full py-3 rounded-xl border-2 border-amber-500/50 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors"
+              onClick={() => removeFile(classifyingFile.id)}
+              className="w-full mt-4 py-2 text-red-400 text-sm hover:text-red-300 transition-colors"
             >
-              Tentar Novamente (arquivos com erro)
+              Remover este arquivo
             </button>
-          )}
-        </form>
+          </div>
+        </div>
+      )}
+
+      {/* Arquivos Não Classificados */}
+      {unclassifiedFiles.length > 0 && !classifyingFileId && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+          <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
+            <Tag className="w-4 h-4" />
+            Clique para classificar ({unclassifiedFiles.length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {unclassifiedFiles.map((file) => (
+              <button
+                key={file.id}
+                type="button"
+                onClick={() => setClassifyingFileId(file.id)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors group"
+              >
+                {file.preview ? <Image className="w-4 h-4" /> : <File className="w-4 h-4" />}
+                <span className="text-sm truncate max-w-[150px]">{file.file.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Checklist de Documentos Obrigatórios */}
+      <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
+        <h3 className="text-sm font-bold text-white mb-3">Documentos Obrigatórios</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
+          {requiredDocs.map((doc) => {
+            const docFiles = getFilesForType(doc.id);
+            const isComplete = docFiles.length > 0;
+            const colors = DOC_COLORS[doc.color];
+            const Icon = doc.icon;
+
+            return (
+              <div
+                key={doc.id}
+                className={`p-2 rounded-lg border text-center transition-all ${isComplete ? `${colors.border} bg-white/5` : 'border-white/10 bg-white/5 opacity-50'
+                  }`}
+              >
+                <div className={`w-6 h-6 mx-auto rounded ${isComplete ? colors.bg : 'bg-slate-700'} flex items-center justify-center mb-1`}>
+                  {isComplete ? <Check className="w-3 h-3 text-white" /> : <Icon className="w-3 h-3 text-white/50" />}
+                </div>
+                <p className={`text-[10px] font-bold ${isComplete ? colors.text : 'text-slate-500'}`}>
+                  {doc.shortLabel}
+                </p>
+                {docFiles.length > 0 && (
+                  <p className="text-[9px] text-emerald-400">{docFiles.length} ✓</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Arquivos Classificados */}
+      {files.filter(f => f.type !== null).length > 0 && !isSubmitting && (
+        <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
+          <h3 className="text-sm font-bold text-slate-400 mb-3">
+            Arquivos Prontos ({files.filter(f => f.type !== null).length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {files.filter(f => f.type !== null).map((file) => {
+              const docType = DOCUMENT_TYPES.find(d => d.id === file.type);
+              const colors = file.type === 'outros' ? DOC_COLORS.pink : DOC_COLORS[docType?.color || 'slate'];
+              const label = file.type === 'outros' ? file.customDescription : docType?.shortLabel;
+
+              return (
+                <div key={file.id} className="relative group">
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded-lg bg-white/10 border ${file.uploadStatus === 'success'
+                    ? 'border-emerald-500/50'
+                    : file.uploadStatus === 'error'
+                      ? 'border-red-500/50'
+                      : `${colors.border}/30`
+                    }`}>
+                    {file.uploadStatus === 'success' && <Check className="w-3 h-3 text-emerald-400" />}
+                    {file.uploadStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
+                    <span className={`text-xs font-bold ${file.uploadStatus === 'success'
+                      ? 'text-emerald-400'
+                      : file.uploadStatus === 'error'
+                        ? 'text-red-400'
+                        : colors.text
+                      }`}>{label}</span>
+                    <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{file.file.name}</span>
+                  </div>
+                  {!isSubmitting && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(file.id)}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-2 h-2 text-white" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem de Erro */}
+      {!allRequiredComplete && !errorMessage && (
+        <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-500/10 rounded-lg px-4 py-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>
+            {unclassifiedFiles.length > 0
+              ? `Classifique ${unclassifiedFiles.length} documento${unclassifiedFiles.length > 1 ? 's' : ''}`
+              : `Faltam ${requiredDocs.length - completedDocs.length} documentos obrigatórios`
+            }
+          </span>
+        </div>
+      )}
+
+      {/* Erro de Upload */}
+      {errorMessage && (
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 rounded-lg px-4 py-2 border border-red-500/30">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="ml-auto p-1 hover:bg-white/10 rounded"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Progresso de Upload */}
+      {isSubmitting && (
+        <div className="bg-benfica-blue/10 border border-benfica-blue/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-benfica-blue animate-spin" />
+              <span className="text-sm text-white font-medium">{uploadStatus}</span>
+            </div>
+            <span className="text-sm font-bold text-benfica-blue">{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-benfica-blue to-blue-400 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          {/* Status individual dos arquivos */}
+          <div className="flex flex-wrap gap-1 mt-2">
+            {files.filter(f => f.type !== null).map((file) => (
+              <div
+                key={file.id}
+                className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${file.uploadStatus === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : file.uploadStatus === 'error'
+                    ? 'bg-red-500/20 text-red-400'
+                    : file.uploadStatus === 'uploading'
+                      ? 'bg-benfica-blue/20 text-benfica-blue'
+                      : 'bg-slate-700/50 text-slate-400'
+                  }`}
+              >
+                {file.uploadStatus === 'uploading' && <Loader2 className="w-3 h-3 animate-spin" />}
+                {file.uploadStatus === 'success' && <Check className="w-3 h-3" />}
+                {file.uploadStatus === 'error' && <X className="w-3 h-3" />}
+                <span className="truncate max-w-[100px]">{file.file.name}</span>
+                {file.uploadStatus === 'uploading' && file.uploadProgress !== undefined && (
+                  <span className="ml-1">{file.uploadProgress}%</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Botão de Enviar */}
+      <button
+        type="submit"
+        disabled={!allRequiredComplete || isSubmitting}
+        className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all duration-300 ${allRequiredComplete && !isSubmitting
+          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:opacity-90 shadow-lg shadow-emerald-500/30 hover:scale-[1.02]'
+          : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+          }`}
+      >
+        {isSubmitting ? (
+          <><Loader2 className="w-6 h-6 animate-spin" /> {uploadStatus || 'Enviando...'}</>
+        ) : (
+          <><Send className="w-6 h-6" /> Enviar Cadastro</>
+        )}
+      </button>
+
+      {/* Botão para Tentar Novamente (se houve erro) */}
+      {errorMessage && files.some(f => f.uploadStatus === 'error') && (
+        <button
+          type="button"
+          onClick={() => {
+            // Resetar status dos arquivos com erro para tentar novamente
+            setFiles(prev => prev.map(f =>
+              f.uploadStatus === 'error'
+                ? { ...f, uploadStatus: 'pending', uploadProgress: undefined, errorMessage: undefined }
+                : f
+            ));
+            setErrorMessage(null);
+          }}
+          className="w-full py-3 rounded-xl border-2 border-amber-500/50 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors"
+        >
+          Tentar Novamente (arquivos com erro)
+        </button>
+      )}
+      </form>
     </Container>
   );
 }

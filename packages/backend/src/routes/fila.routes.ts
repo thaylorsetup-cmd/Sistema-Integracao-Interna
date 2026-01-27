@@ -17,8 +17,8 @@ const router = Router();
 
 // Schema para criar submission
 const createSubmissionSchema = z.object({
-  nomeMotorista: z.string().min(2, 'Nome deve ter no minimo 2 caracteres'),
-  cpf: z.string().min(11, 'CPF invalido'),
+  nomeMotorista: z.string().min(2, 'Nome deve ter no minimo 2 caracteres').optional(),
+  cpf: z.string().min(11, 'CPF invalido').optional(),
   telefone: z.string().optional(),
   email: z.string().email().optional(),
   placa: z.string().optional(),

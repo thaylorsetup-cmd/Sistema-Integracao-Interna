@@ -9,8 +9,8 @@ import { registrarAuditoria, AuditActions } from './audit.service.js';
 import type { User, SubmissionStatus, SubmissionPriority } from '../types/database.js';
 
 export interface CreateSubmissionData {
-  nomeMotorista: string;
-  cpf: string;
+  nomeMotorista?: string;
+  cpf?: string;
   telefone?: string;
   email?: string;
   placa?: string;

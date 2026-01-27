@@ -232,8 +232,8 @@ router.get(
           taxaAprovacao:
             Number(row.total_submissions) > 0
               ? Math.round(
-                  (Number(row.aprovados) / Number(row.total_submissions)) * 100
-                )
+                (Number(row.aprovados) / Number(row.total_submissions)) * 100
+              )
               : 0,
         })),
       });
@@ -376,7 +376,7 @@ router.get(
         data: {
           totalDelays: Number(totalDelays?.count || 0),
           submissionsWithDelays: Number(submissionsComAtrasos?.count || 0),
-          averageDelaysPerSubmission: Number(avgDelays?.avg || 0).toFixed(2),
+          averageDelaysPerSubmission: Number(avgDelays?.avg || 0),
           topDelayReasons: topDelayReasons.map((row) => ({
             motivo: row.motivo,
             count: Number(row.count),
