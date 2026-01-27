@@ -23,6 +23,7 @@ const TvAlertas = lazy(() => import('@/pages/tv').then(module => ({ default: mod
 const Configuracoes = lazy(() => import('@/pages/Configuracoes').then(module => ({ default: module.Configuracoes })));
 const Auditoria = lazy(() => import('@/pages/Auditoria').then(module => ({ default: module.Auditoria })));
 const Notificacoes = lazy(() => import('@/pages/Notificacoes').then(module => ({ default: module.Notificacoes })));
+const Tickets = lazy(() => import('@/pages/Tickets').then(module => ({ default: module.Tickets })));
 
 const queryClient = new QueryClient();
 
@@ -134,6 +135,18 @@ function App() {
                     <MainLayout>
                       <Suspense fallback={<Loading />}>
                         <Configuracoes />
+                      </Suspense>
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tickets"
+                element={
+                  <ProtectedRoute permission="viewConfiguracoesSistema">
+                    <MainLayout>
+                      <Suspense fallback={<Loading />}>
+                        <Tickets />
                       </Suspense>
                     </MainLayout>
                   </ProtectedRoute>

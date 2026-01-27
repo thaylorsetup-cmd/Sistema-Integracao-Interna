@@ -4,6 +4,7 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
+import { sql } from 'kysely';
 import { db } from '../config/database.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { requirePermission, requireAnyPermission } from '../middlewares/permission.middleware.js';
@@ -182,13 +183,7 @@ router.get(
       const tempoMedio = await db
         .selectFrom('submissions')
         .select(
-          db.fn
-            .avg(
-              db.raw(
-                "EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60"
-              )
-            )
-            .as('tempo_medio_minutos')
+          sql<number>`AVG(EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60)`.as('tempo_medio_minutos')
         )
         .where('data_conclusao', 'is not', null)
         .where('data_inicio_analise', 'is not', null)
@@ -694,19 +689,21 @@ router.post('/:id/adicionar-atraso', requireAuth, requirePermission('aprovarCada
     // Emitir evento Socket.IO para notificar operador em tempo real
     try {
       const io = getIO();
-      emitSubmissionDelay(
-        io,
-        {
-          submissionId: id,
-          delay: {
-            id: delay.id,
-            motivo: delay.motivo,
-            criado_em: delay.criado_em,
-            criado_por_nome: authReq.user?.name,
+      if (delay) {
+        emitSubmissionDelay(
+          io,
+          {
+            submissionId: id,
+            delay: {
+              id: delay.id,
+              motivo: delay.motivo,
+              criado_em: delay.criado_em,
+              criado_por_nome: authReq.user?.nome,
+            },
           },
-        },
-        submission.operador_id
-      );
+          submission.operador_id
+        );
+      }
     } catch (error) {
       logger.warn('Socket.IO nao disponivel para emitir evento de delay:', error);
     }
@@ -759,7 +756,7 @@ router.get('/:id/delays', requireAuth, requireAnyPermission('viewDashboardCadast
         'delays.criado_em',
         'delays.notificado',
         'delays.notificado_em',
-        'users.name as criado_por_nome',
+        'users.nome as criado_por_nome',
         'users.email as criado_por_email',
       ])
       .orderBy('delays.criado_em', 'desc')

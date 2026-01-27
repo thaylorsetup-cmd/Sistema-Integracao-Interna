@@ -46,8 +46,7 @@ const DOCUMENT_TYPES: DocumentType[] = [
   { id: 'pamcard', label: 'PAMCARD/TAG', shortLabel: 'PAMCARD', required: true, icon: FileCheck, color: 'orange' },
   { id: 'gr', label: 'GR (Gerenciadora de Risco)', shortLabel: 'GR', required: true, icon: Shield, color: 'red' },
   { id: 'rcv', label: 'Certificado RCV', shortLabel: 'RCV', required: true, icon: Shield, color: 'indigo' },
-  { id: 'doc_prop', label: 'Doc. Proprietário (ANTT PF)', shortLabel: 'Doc.Prop', required: false, icon: FileText, color: 'slate' },
-  { id: 'end_prop', label: 'Endereço Proprietário', shortLabel: 'End.Prop', required: false, icon: MapPin, color: 'slate' },
+  { id: 'contrato', label: 'Contrato', shortLabel: 'Contrato', required: false, icon: FileText, color: 'slate' },
 ];
 
 const DOC_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -90,6 +89,14 @@ export function DashboardOperador() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Campos obrigatórios do motorista
+  const [nomeMotorista, setNomeMotorista] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [telefoneMotorista, setTelefoneMotorista] = useState('');
+  const [emailMotorista, setEmailMotorista] = useState('');
+  const [placa, setPlaca] = useState('');
+  const [tipoVeiculo, setTipoVeiculo] = useState('');
+
   // Campos de informação adicional
   const [origem, setOrigem] = useState('');
   const [destino, setDestino] = useState('');
@@ -105,7 +112,8 @@ export function DashboardOperador() {
   // Verificar documentos obrigatórios
   const requiredDocs = DOCUMENT_TYPES.filter(d => d.required);
   const completedDocs = requiredDocs.filter(d => getFilesForType(d.id).length > 0);
-  const allRequiredComplete = completedDocs.length === requiredDocs.length && unclassifiedFiles.length === 0;
+  const motoristaFieldsComplete = nomeMotorista.trim().length >= 2 && cpf.trim().length >= 11;
+  const allRequiredComplete = motoristaFieldsComplete && completedDocs.length === requiredDocs.length && unclassifiedFiles.length === 0;
 
   const processFiles = useCallback((fileList: FileList | File[]) => {
     const newFiles: UploadedFile[] = [];
@@ -204,11 +212,12 @@ export function DashboardOperador() {
     try {
       // 1. Criar o cadastro na fila
       const createResponse = await filaApi.create({
-        tipo_cadastro: 'motorista',
-        dados: {
-          created_by: user?.name || 'Operador',
-          total_documentos: files.length,
-        },
+        nomeMotorista: nomeMotorista.trim(),
+        cpf: cpf.trim(),
+        telefone: telefoneMotorista || undefined,
+        email: emailMotorista || undefined,
+        placa: placa || undefined,
+        tipoVeiculo: tipoVeiculo || undefined,
         origem: origem || undefined,
         destino: destino || undefined,
         localizacaoAtual: localizacaoAtual || undefined,
@@ -362,6 +371,103 @@ export function DashboardOperador() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Dados do Motorista */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
+            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-emerald-400" />
+              Dados do Motorista
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Nome do Motorista <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={nomeMotorista}
+                  onChange={(e) => setNomeMotorista(e.target.value)}
+                  placeholder="Nome completo"
+                  required
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  CPF <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  required
+                  maxLength={14}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Telefone
+                </label>
+                <input
+                  type="text"
+                  value={telefoneMotorista}
+                  onChange={(e) => setTelefoneMotorista(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={emailMotorista}
+                  onChange={(e) => setEmailMotorista(e.target.value)}
+                  placeholder="email@exemplo.com"
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Placa do Veículo
+                </label>
+                <input
+                  type="text"
+                  value={placa}
+                  onChange={(e) => setPlaca(e.target.value.toUpperCase())}
+                  placeholder="ABC1D23"
+                  maxLength={10}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-2">
+                  Tipo de Veículo
+                </label>
+                <select
+                  value={tipoVeiculo}
+                  onChange={(e) => setTipoVeiculo(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
+                >
+                  <option value="" className="bg-slate-900">Selecione...</option>
+                  <option value="truck" className="bg-slate-900">Caminhão</option>
+                  <option value="carreta" className="bg-slate-900">Carreta</option>
+                  <option value="bitrem" className="bg-slate-900">Bitrem</option>
+                  <option value="rodotrem" className="bg-slate-900">Rodotrem</option>
+                  <option value="van" className="bg-slate-900">Van</option>
+                  <option value="utilitario" className="bg-slate-900">Utilitário</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* Campos de Informação Adicional */}
           <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
             <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
@@ -723,11 +829,13 @@ export function DashboardOperador() {
           )}
 
           {/* Mensagem de Erro */}
-          {!allRequiredComplete && files.length > 0 && !errorMessage && (
+          {!allRequiredComplete && !errorMessage && (
             <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-500/10 rounded-lg px-4 py-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>
-                {unclassifiedFiles.length > 0
+                {!motoristaFieldsComplete
+                  ? 'Preencha o nome e CPF do motorista'
+                  : unclassifiedFiles.length > 0
                   ? `Classifique ${unclassifiedFiles.length} documento${unclassifiedFiles.length > 1 ? 's' : ''}`
                   : `Faltam ${requiredDocs.length - completedDocs.length} documentos obrigatórios`
                 }

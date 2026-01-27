@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   FileSearch,
+  Ticket,
 } from 'lucide-react';
 import type { Permission } from '@/types';
 import { useAuth } from '@/contexts';
@@ -58,6 +59,12 @@ const navItems: NavItem[] = [
     icon: FileText,
     label: 'Auditoria',
     permission: 'viewAuditoria',
+  },
+  {
+    to: '/tickets',
+    icon: Ticket,
+    label: 'Tickets',
+    adminOnly: true,
   },
   {
     to: '/configuracoes',

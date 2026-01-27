@@ -84,10 +84,10 @@ interface Submission {
 // Mapear status da API para status local
 function mapApiStatus(status: string): Submission['status'] {
     const statusMap: Record<string, Submission['status']> = {
-        'pending': 'pendente',
-        'in_analysis': 'em_analise',
-        'approved': 'aprovado',
-        'rejected': 'rejeitado',
+        'pendente': 'pendente',
+        'em_analise': 'em_analise',
+        'aprovado': 'aprovado',
+        'rejeitado': 'rejeitado',
     };
     return statusMap[status] || 'pendente';
 }
@@ -96,8 +96,8 @@ function mapApiStatus(status: string): Submission['status'] {
 function mapApiPriority(priority: string): Submission['prioridade'] {
     const priorityMap: Record<string, Submission['prioridade']> = {
         'normal': 'normal',
-        'high': 'alta',
-        'urgent': 'urgente',
+        'alta': 'alta',
+        'urgente': 'urgente',
     };
     return priorityMap[priority] || 'normal';
 }
@@ -125,24 +125,24 @@ function calcularTempoEspera(createdAt: string): string {
 
 // Converter submission da API para o formato local
 function mapApiSubmission(apiSubmission: ApiSubmission): Submission {
-    const data = new Date(apiSubmission.created_at);
+    const data = new Date(apiSubmission.data_envio || apiSubmission.created_at);
 
     return {
         id: apiSubmission.id,
-        operador: apiSubmission.dados?.created_by || 'Operador',
+        operador: (apiSubmission as any).operador_nome || apiSubmission.nome_motorista || 'Operador',
         dataEnvio: data.toLocaleDateString('pt-BR'),
         horaEnvio: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         status: mapApiStatus(apiSubmission.status),
         documentos: (apiSubmission.documents || []).map((doc: ApiDocument) => ({
             id: doc.id,
             type: doc.tipo,
-            filename: doc.original_name,
+            filename: doc.nome_original,
             url: `/api/documents/${doc.id}/download`,
         })),
-        tempoEspera: ['approved', 'rejected'].includes(apiSubmission.status)
+        tempoEspera: ['aprovado', 'rejeitado'].includes(apiSubmission.status)
             ? '—'
             : calcularTempoEspera(apiSubmission.created_at),
-        prioridade: mapApiPriority(apiSubmission.dados?.prioridade || 'normal'),
+        prioridade: mapApiPriority(apiSubmission.prioridade || 'normal'),
     };
 }
 

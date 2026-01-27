@@ -2,6 +2,7 @@
  * Service de Submissions
  * Logica de negocio da fila de cadastros
  */
+import { sql } from 'kysely';
 import { db } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { registrarAuditoria, AuditActions } from './audit.service.js';
@@ -259,8 +260,8 @@ export async function rejeitarSubmission(
     .updateTable('submissions')
     .set({
       status: 'rejeitado',
-      atribuido_a: analista.id,
-      finished_at: new Date(),
+      analista_id: analista.id,
+      data_conclusao: new Date(),
       motivo_rejeicao: motivoRejeicao,
       ...(categoriaRejeicao && { categoria_rejeicao: categoriaRejeicao }),
     })
@@ -349,7 +350,7 @@ export async function buscarDelays(submissionId: string) {
       'delays.criado_em',
       'delays.notificado',
       'delays.notificado_em',
-      'users.name as criado_por_nome',
+      'users.nome as criado_por_nome',
       'users.email as criado_por_email',
     ])
     .orderBy('delays.criado_em', 'desc')
@@ -391,13 +392,7 @@ export async function getFilaStats() {
     db
       .selectFrom('submissions')
       .select(
-        db.fn
-          .avg(
-            db.raw(
-              "EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60"
-            )
-          )
-          .as('tempo_medio_minutos')
+        sql<number>`AVG(EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60)`.as('tempo_medio_minutos')
       )
       .where('data_conclusao', 'is not', null)
       .where('data_inicio_analise', 'is not', null)

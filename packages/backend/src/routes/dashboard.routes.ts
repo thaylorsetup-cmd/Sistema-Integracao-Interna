@@ -3,6 +3,7 @@
  * Estatisticas e KPIs
  */
 import { Router } from 'express';
+import { sql } from 'kysely';
 import { db } from '../config/database.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 import { requireAnyPermission } from '../middlewares/permission.middleware.js';
@@ -49,13 +50,7 @@ router.get(
       const tempoMedio = await db
         .selectFrom('submissions')
         .select(
-          db.fn
-            .avg(
-              db.raw(
-                "EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60"
-              )
-            )
-            .as('tempo_medio_minutos')
+          sql<number>`AVG(EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 60)`.as('tempo_medio_minutos')
         )
         .where('data_conclusao', 'is not', null)
         .where('data_inicio_analise', 'is not', null)
@@ -153,10 +148,11 @@ router.get(
     try {
       const { dias = '30' } = req.query;
 
+      const numDias = Number(dias);
       const result = await db
         .selectFrom('submissions')
         .select([
-          db.raw("DATE(data_envio) as data").as('data'),
+          sql<string>`DATE(data_envio)`.as('data'),
           db.fn.count('id').as('total'),
           db.fn
             .count('id')
@@ -170,10 +166,10 @@ router.get(
         .where(
           'data_envio',
           '>=',
-          db.raw(`NOW() - INTERVAL '${Number(dias)} days'`)
+          sql<Date>`NOW() - INTERVAL '${sql.raw(String(numDias))} days'`
         )
-        .groupBy(db.raw('DATE(data_envio)'))
-        .orderBy(db.raw('DATE(data_envio)'), 'asc')
+        .groupBy(sql`DATE(data_envio)`)
+        .orderBy(sql`DATE(data_envio)`, 'asc')
         .execute();
 
       res.json({
@@ -354,20 +350,17 @@ router.get(
       // Submissions com atrasos
       const submissionsComAtrasos = await db
         .selectFrom('delays')
-        .select(db.fn.countDistinct('submission_id').as('count'))
+        .select(sql<number>`COUNT(DISTINCT submission_id)`.as('count'))
         .executeTakeFirst();
 
       // Media de atrasos por submission
-      const avgDelays = await db
-        .selectFrom(
-          db
-            .selectFrom('delays')
-            .select(['submission_id', db.fn.count('id').as('delays_count')])
-            .groupBy('submission_id')
-            .as('counts')
-        )
-        .select(db.fn.avg('delays_count').as('avg'))
-        .executeTakeFirst();
+      const avgDelays = await sql<{ avg: number }>`
+        SELECT AVG(delays_count) as avg FROM (
+          SELECT submission_id, COUNT(id) as delays_count
+          FROM delays
+          GROUP BY submission_id
+        ) counts
+      `.execute(db).then(r => r.rows[0]);
 
       // Top motivos de atraso
       const topDelayReasons = await db
@@ -439,16 +432,10 @@ router.get(
       // Tempo medio de processamento (em horas)
       const avgProcessingTime = await submissionsQuery
         .select(
-          db.fn
-            .avg(
-              db.raw(
-                "EXTRACT(EPOCH FROM (finished_at - started_at)) / 3600"
-              )
-            )
-            .as('avg_hours')
+          sql<number>`AVG(EXTRACT(EPOCH FROM (data_conclusao - data_inicio_analise)) / 3600)`.as('avg_hours')
         )
-        .where('finished_at', 'is not', null)
-        .where('started_at', 'is not', null)
+        .where('data_conclusao', 'is not', null)
+        .where('data_inicio_analise', 'is not', null)
         .executeTakeFirst();
 
       // Rejeicoes por categoria
@@ -472,14 +459,14 @@ router.get(
         .innerJoin('users', 'submissions.operador_id', 'users.id')
         .select([
           'users.id',
-          'users.name as nome',
+          'users.nome',
           db.fn.count('submissions.id').as('total'),
           db.fn
             .count('submissions.id')
             .filterWhere('submissions.status', '=', 'aprovado')
             .as('aprovados'),
         ])
-        .groupBy(['users.id', 'users.name'])
+        .groupBy(['users.id', 'users.nome'])
         .orderBy(db.fn.count('submissions.id'), 'desc')
         .limit(10)
         .execute();

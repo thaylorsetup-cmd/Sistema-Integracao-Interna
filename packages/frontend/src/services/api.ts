@@ -119,16 +119,19 @@ export const authApi = {
 
 export interface Submission {
   id: string;
-  tipo_cadastro: string;
+  nome_motorista: string;
+  cpf: string;
+  telefone?: string;
+  email?: string;
+  placa?: string;
+  tipo_veiculo?: string;
   status: string;
   prioridade?: string;
-  dados: Record<string, unknown>;
-  created_by: string;
-  assigned_to?: string;
-  created_at: string;
-  updated_at: string;
-  started_at?: string;
-  finished_at?: string;
+  operador_id: string;
+  analista_id?: string;
+  data_envio: string;
+  data_inicio_analise?: string;
+  data_conclusao?: string;
   observacoes?: string;
   motivo_rejeicao?: string;
   categoria_rejeicao?: string;
@@ -136,12 +139,23 @@ export interface Submission {
   destino?: string;
   localizacao_atual?: string;
   tipo_mercadoria?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  operador_nome?: string;
+  operador_email?: string;
+  analista_nome?: string;
+  analista_email?: string;
   documents?: Document[];
 }
 
 export interface CreateSubmissionData {
-  tipo_cadastro: string;
-  dados?: Record<string, unknown>;
+  nomeMotorista: string;
+  cpf: string;
+  telefone?: string;
+  email?: string;
+  placa?: string;
+  tipoVeiculo?: string;
   prioridade?: 'normal' | 'alta' | 'urgente';
   observacoes?: string;
   origem?: string;
@@ -196,8 +210,8 @@ export const filaApi = {
   // Rejeitar
   rejeitar: async (id: string, motivoRejeicao: string, categoriaRejeicao?: string) => {
     const response = await apiClient.post<ApiResponse<Submission>>(`/fila/${id}/rejeitar`, {
-      motivo_rejeicao: motivoRejeicao,
-      categoria_rejeicao: categoriaRejeicao
+      motivoRejeicao,
+      categoria: categoriaRejeicao
     });
     return response.data;
   },
@@ -241,16 +255,16 @@ export interface Document {
   id: string;
   submission_id: string;
   tipo: DocumentType;
-  original_name: string;
-  stored_name: string;
+  nome_original: string;
+  nome_armazenado?: string;
   mime_type: string;
-  size_bytes: number;
-  validated: boolean;
-  validated_at?: string;
-  validation_notes?: string;
+  tamanho_bytes: number;
+  validado: boolean;
+  validado_em?: string;
+  observacao_validacao?: string;
   uploaded_at: string;
   uploaded_by?: string;
-  validated_by?: string;
+  validado_por?: string;
 }
 
 export const documentsApi = {
@@ -504,10 +518,25 @@ export interface TicketData {
   descricao: string;
 }
 
+export type TicketStatus = 'aberto' | 'em_andamento' | 'resolvido' | 'fechado';
+
 export interface Ticket extends TicketData {
   id: string;
-  status: 'aberto' | 'em_andamento' | 'resolvido';
+  status: TicketStatus;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+  usuario_email: string | null;
+  resposta: string | null;
+  respondido_por: string | null;
+  respondido_em: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface TicketStats {
+  total: number;
+  byStatus: Record<string, number>;
+  byCategoria: Record<string, number>;
 }
 
 export const ticketApi = {
@@ -517,9 +546,44 @@ export const ticketApi = {
     return response.data;
   },
 
-  // Listar tickets
-  list: async () => {
-    const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets');
+  // Listar tickets com filtros e paginação
+  list: async (params?: {
+    status?: TicketStatus;
+    categoria?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await apiClient.get<ApiResponse<Ticket[]> & { pagination: { total: number; page: number; pageSize: number; totalPages: number } }>('/tickets', { params });
+    return response.data;
+  },
+
+  // Detalhes de um ticket
+  get: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<Ticket>>(`/tickets/${id}`);
+    return response.data;
+  },
+
+  // Atualizar status (admin/gestor)
+  updateStatus: async (id: string, status: TicketStatus) => {
+    const response = await apiClient.put<ApiResponse<Ticket>>(`/tickets/${id}/status`, { status });
+    return response.data;
+  },
+
+  // Responder ticket (admin/gestor)
+  responder: async (id: string, resposta: string, status?: TicketStatus) => {
+    const response = await apiClient.put<ApiResponse<Ticket>>(`/tickets/${id}/responder`, { resposta, status });
+    return response.data;
+  },
+
+  // Deletar ticket (admin)
+  delete: async (id: string) => {
+    const response = await apiClient.delete<ApiResponse>(`/tickets/${id}`);
+    return response.data;
+  },
+
+  // Estatísticas (admin/gestor)
+  stats: async () => {
+    const response = await apiClient.get<ApiResponse<TicketStats>>('/tickets/stats/summary');
     return response.data;
   },
 };
