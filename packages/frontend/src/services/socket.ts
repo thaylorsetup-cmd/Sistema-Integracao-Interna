@@ -30,7 +30,15 @@ export interface DashboardStatsEvent {
     emAnalise: number;
     aprovados: number;
     rejeitados: number;
+    devolvidos?: number;
   };
+}
+
+export interface SubmissionDevolvidaEvent {
+  id: string;
+  motivoDevolucao: string;
+  categoria?: string;
+  analista?: string;
 }
 
 // =====================================================
@@ -163,6 +171,15 @@ export function onDashboardStats(callback: EventCallback<DashboardStatsEvent>): 
   return () => s.off('dashboard:stats', callback);
 }
 
+/**
+ * Escutar submissions devolvidas
+ */
+export function onSubmissionDevolvida(callback: EventCallback<SubmissionDevolvidaEvent>): () => void {
+  const s = getSocket();
+  s.on('submission:devolvida', callback);
+  return () => s.off('submission:devolvida', callback);
+}
+
 export default {
   getSocket,
   connectSocket,
@@ -176,4 +193,5 @@ export default {
   onSubmissionUpdated,
   onNotification,
   onDashboardStats,
+  onSubmissionDevolvida,
 };

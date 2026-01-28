@@ -14,6 +14,7 @@ const DashboardGestao = lazy(() => import('@/pages/dashboard').then(module => ({
 const DashboardCadastroGR = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.DashboardCadastroGR })));
 const TvDisplay = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.TvDisplay })));
 const KpiDetalhes = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.KpiDetalhes })));
+const MeusDevolvidos = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.MeusDevolvidos })));
 
 const TvMapa = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvMapa })));
 const TvKpis = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvKpis })));
@@ -90,6 +91,18 @@ function App() {
                       <MainLayout>
                         <Suspense fallback={<Loading />}>
                           <DashboardCadastroGR />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/devolvidos"
+                  element={
+                    <ProtectedRoute permission="viewDashboardOperador">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <MeusDevolvidos />
                         </Suspense>
                       </MainLayout>
                     </ProtectedRoute>

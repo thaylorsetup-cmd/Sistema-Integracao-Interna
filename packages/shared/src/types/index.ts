@@ -5,3 +5,4 @@ export * from './alerta';
 export * from './coleta';
 export * from './common';
 export * from './frota';
+export * from './submission';

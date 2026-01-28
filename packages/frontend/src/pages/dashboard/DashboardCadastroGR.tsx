@@ -22,7 +22,8 @@ import {
     RefreshCw,
     Wifi,
     WifiOff,
-    AlertCircle
+    AlertCircle,
+    RotateCcw
 } from 'lucide-react';
 import { filaApi, documentsApi, type Submission as ApiSubmission, type Document as ApiDocument } from '@/services/api';
 import { useFilaSocket, type SubmissionNewEvent, type SubmissionUpdatedEvent } from '@/hooks/useSocket';
@@ -76,7 +77,7 @@ interface Submission {
     operador: string;
     dataEnvio: string;
     horaEnvio: string;
-    status: 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado';
+    status: 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado' | 'devolvido';
     documentos: DocumentFile[];
     tempoEspera: string;
     prioridade: 'normal' | 'alta' | 'urgente';
@@ -93,6 +94,7 @@ function mapApiStatus(status: string): Submission['status'] {
         'em_analise': 'em_analise',
         'aprovado': 'aprovado',
         'rejeitado': 'rejeitado',
+        'devolvido': 'devolvido',
     };
     return statusMap[status] || 'pendente';
 }
@@ -212,12 +214,14 @@ function StatusBadge({ status }: { status: Submission['status'] }) {
         em_analise: 'bg-benfica-blue/20 text-benfica-blue border-benfica-blue/30',
         aprovado: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         rejeitado: 'bg-red-500/20 text-red-400 border-red-500/30',
+        devolvido: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     };
     const labels = {
         pendente: 'Pendente',
         em_analise: 'Em Análise',
         aprovado: 'Aprovado',
         rejeitado: 'Rejeitado',
+        devolvido: 'Devolvido',
     };
 
     return (
@@ -248,6 +252,7 @@ function DetailModal({
     onApprove,
     onReject,
     onDelay,
+    onDevolver,
     onStartAnalysis
 }: {
     submission: Submission;
@@ -255,6 +260,7 @@ function DetailModal({
     onApprove: () => void;
     onReject: () => void;
     onDelay: () => void;
+    onDevolver: () => void;
     onStartAnalysis: () => void;
 }) {
     const [downloadingAll, setDownloadingAll] = useState(false);
@@ -503,7 +509,7 @@ function DetailModal({
                 </div>
 
                 {/* Footer de Ações Fixo */}
-                <div className="bg-slate-900 p-5 border-t border-white/10 flex gap-3 flex-shrink-0">
+                <div className="bg-slate-900 p-5 border-t border-white/10 flex gap-3 flex-shrink-0 flex-wrap">
                     {submission.status === 'pendente' && (
                         <button
                             onClick={onStartAnalysis}
@@ -517,7 +523,14 @@ function DetailModal({
                         className="flex-1 py-3 bg-amber-500/10 text-amber-400 font-bold rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-2"
                     >
                         <AlertCircle className="w-4 h-4" />
-                        Adicionar Atraso
+                        Atraso
+                    </button>
+                    <button
+                        onClick={onDevolver}
+                        className="flex-1 py-3 bg-orange-500/10 text-orange-400 font-bold rounded-xl border border-orange-500/30 hover:bg-orange-500/20 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <RotateCcw className="w-4 h-4" />
+                        Devolver
                     </button>
                     <button
                         onClick={onReject}
@@ -721,6 +734,11 @@ export function DashboardCadastroGR() {
     const [delaySubmissionId, setDelaySubmissionId] = useState<string | null>(null);
     const [delayReason, setDelayReason] = useState('');
 
+    const [showDevolverModal, setShowDevolverModal] = useState(false);
+    const [devolverSubmissionId, setDevolverSubmissionId] = useState<string | null>(null);
+    const [devolverReason, setDevolverReason] = useState('');
+    const [devolverCategory, setDevolverCategory] = useState('');
+
     // Carregar dados da API
     const loadSubmissions = useCallback(async (showRefreshing = false) => {
         try {
@@ -834,6 +852,39 @@ export function DashboardCadastroGR() {
         }
     };
 
+    // Funções para modal de devolução
+    const handleDevolverClick = (submissionId: string) => {
+        setDevolverSubmissionId(submissionId);
+        setShowDevolverModal(true);
+    };
+
+    const handleDevolverSubmit = async () => {
+        if (!devolverSubmissionId || !devolverReason || !devolverCategory) {
+            alert('Preencha todos os campos');
+            return;
+        }
+
+        try {
+            const response = await filaApi.devolver(devolverSubmissionId, devolverReason, devolverCategory);
+
+            if (response.success) {
+                setSubmissions(prev => prev.map(sub =>
+                    sub.id === devolverSubmissionId ? mapApiSubmission(response.data!) : sub
+                ));
+                setShowDevolverModal(false);
+                setDevolverReason('');
+                setDevolverCategory('');
+                setDevolverSubmissionId(null);
+                setSelectedSubmission(null);
+                alert('Cadastro devolvido. Operador será notificado para correção.');
+            } else {
+                alert(response.error || 'Erro ao devolver cadastro');
+            }
+        } catch (err) {
+            alert('Erro de conexão');
+        }
+    };
+
     // Ações
     const handleAction = async (id: string, action: string) => {
         if (action === 'view') {
@@ -862,6 +913,11 @@ export function DashboardCadastroGR() {
 
         if (action === 'delay') {
             handleAddDelayClick(id);
+            return;
+        }
+
+        if (action === 'devolver') {
+            handleDevolverClick(id);
             return;
         }
 
@@ -895,6 +951,7 @@ export function DashboardCadastroGR() {
 
     const pendentes = submissions.filter(s => s.status === 'pendente');
     const emAnalise = submissions.filter(s => s.status === 'em_analise');
+    const devolvidos = submissions.filter(s => s.status === 'devolvido');
     const concluidos = submissions.filter(s => s.status === 'aprovado' || s.status === 'rejeitado');
 
     // Loading state
@@ -1058,6 +1115,7 @@ export function DashboardCadastroGR() {
                     onApprove={() => handleAction(selectedSubmission.id, 'approve')}
                     onReject={() => handleAction(selectedSubmission.id, 'reject')}
                     onDelay={() => handleAction(selectedSubmission.id, 'delay')}
+                    onDevolver={() => handleAction(selectedSubmission.id, 'devolver')}
                     onStartAnalysis={() => handleAction(selectedSubmission.id, 'analyze')}
                 />
             )}
@@ -1182,6 +1240,79 @@ export function DashboardCadastroGR() {
                 </div>,
                 document.body
             )}
+
+            {/* Modal de Devolução - usando Portal para garantir que apareça na frente */}
+            {showDevolverModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowDevolverModal(false)} />
+                    <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <RotateCcw className="w-5 h-5 text-orange-500" />
+                                Devolver para Correção
+                            </h3>
+                            <button onClick={() => setShowDevolverModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                                <X className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-slate-400">
+                            O operador será notificado e poderá fazer as correções necessárias e reenviar o cadastro.
+                        </p>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Categoria da Correção
+                            </label>
+                            <select
+                                value={devolverCategory}
+                                onChange={(e) => setDevolverCategory(e.target.value)}
+                                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+                            >
+                                <option value="" className="bg-slate-900">Selecione...</option>
+                                <option value="documento_ilegivel" className="bg-slate-900">Documento Ilegível</option>
+                                <option value="documento_incompleto" className="bg-slate-900">Documento Incompleto</option>
+                                <option value="dados_incorretos" className="bg-slate-900">Dados Incorretos</option>
+                                <option value="falta_documento" className="bg-slate-900">Falta Documento</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Detalhes da Correção
+                            </label>
+                            <textarea
+                                value={devolverReason}
+                                onChange={(e) => setDevolverReason(e.target.value)}
+                                rows={4}
+                                placeholder="Descreva o que precisa ser corrigido..."
+                                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setShowDevolverModal(false)}
+                                className="flex-1 py-3 rounded-xl border border-white/20 text-white font-bold hover:bg-white/10 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleDevolverSubmit}
+                                disabled={!devolverReason || !devolverCategory}
+                                className={`flex-1 py-3 rounded-xl font-bold transition-colors ${devolverReason && devolverCategory
+                                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                Devolver Cadastro
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </Container>
     );
 }
+

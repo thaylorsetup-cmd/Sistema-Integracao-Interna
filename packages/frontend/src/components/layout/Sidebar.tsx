@@ -10,6 +10,7 @@ import {
   X,
   FileSearch,
   Ticket,
+  RotateCcw,
 } from 'lucide-react';
 import type { Permission } from '@/types';
 import { useAuth } from '@/contexts';
@@ -32,6 +33,12 @@ const navItems: NavItem[] = [
     to: '/dashboard/operador',
     icon: LayoutDashboard,
     label: 'Envio de Documentos',
+    permission: 'viewDashboardOperador',
+  },
+  {
+    to: '/dashboard/devolvidos',
+    icon: RotateCcw,
+    label: 'Meus Devolvidos',
     permission: 'viewDashboardOperador',
   },
   {

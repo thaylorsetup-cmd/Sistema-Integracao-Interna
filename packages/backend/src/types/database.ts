@@ -9,11 +9,12 @@ import type { Generated, ColumnType, Insertable, Selectable, Updateable } from '
 // =====================================================
 
 export type UserRole = 'admin' | 'gestor' | 'operacional' | 'cadastro' | 'comercial' | 'auditor';
-export type SubmissionStatus = 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado';
+export type SubmissionStatus = 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado' | 'devolvido';
 export type SubmissionPriority = 'normal' | 'alta' | 'urgente';
-export type DocumentType = 'crlv' | 'antt' | 'cnh' | 'endereco' | 'bancario' | 'pamcard' | 'gr' | 'rcv' | 'contrato' | 'outros';
+export type DocumentType = 'crlv' | 'antt' | 'cnh' | 'endereco' | 'bancario' | 'pamcard' | 'gr' | 'rcv' | 'flex' | 'cte' | 'contrato' | 'outros';
+export type TipoCadastro = 'novo_cadastro' | 'atualizacao' | 'agregado' | 'bens_rodando';
 
-export type RejectionCategory = 'documentos-incompletos' | 'documentos-invalidos' | 'informacoes-incorretas' | 'nao-atende-requisitos' | 'outro';
+export type RejectionCategory = 'documentos-incompletos' | 'documentos-invalidos' | 'informacoes-incorretas' | 'nao-atende-requisitos' | 'documento_ilegivel' | 'documento_incompleto' | 'dados_incorretos' | 'falta_documento' | 'outro';
 export type TicketStatus = 'aberto' | 'em_andamento' | 'resolvido' | 'fechado';
 export type TicketCategoria = 'bug' | 'duvida' | 'sugestao' | 'outro';
 
@@ -80,6 +81,9 @@ export type NewSession = Insertable<SessionsTable>;
 export interface SubmissionsTable {
   id: Generated<string>;
 
+  // Tipo de cadastro (migration 011)
+  tipo_cadastro: Generated<TipoCadastro>;
+
   // Dados do motorista
   nome_motorista: string | null;
   cpf: string | null;
@@ -113,6 +117,22 @@ export interface SubmissionsTable {
   destino: string | null;
   localizacao_atual: string | null;
   tipo_mercadoria: string | null;
+
+  // Rastreamento (migration 011)
+  requer_rastreamento: Generated<boolean>;
+  coordenadas_rastreamento: ColumnType<Record<string, unknown> | null, string | null, string | null>;
+
+  // Novos campos obrigatórios para Cadastro Novo (migration 011)
+  tel_proprietario: string | null;
+  endereco_residencial: string | null;
+  numero_pis: string | null;
+  valor_mercadoria: number | null;
+  tel_motorista: string | null;
+  referencia_comercial_1: string | null;
+  referencia_comercial_2: string | null;
+  referencia_pessoal_1: string | null;
+  referencia_pessoal_2: string | null;
+  referencia_pessoal_3: string | null;
 
   // Metadados
   created_at: Generated<Date>;
@@ -221,6 +241,42 @@ export type NewTicket = Insertable<TicketsTable>;
 export type TicketUpdate = Updateable<TicketsTable>;
 
 // =====================================================
+// TABELA: checklists (Checklist de validação)
+// =====================================================
+
+export interface ChecklistsTable {
+  id: Generated<string>;
+  submission_id: string;
+  item_nome: string;
+  completado: Generated<boolean>;
+  completado_por: string | null;
+  completado_em: Date | null;
+  observacao: string | null;
+  created_at: Generated<Date>;
+}
+
+export type Checklist = Selectable<ChecklistsTable>;
+export type NewChecklist = Insertable<ChecklistsTable>;
+export type ChecklistUpdate = Updateable<ChecklistsTable>;
+
+// =====================================================
+// TABELA: checklist_templates (Templates de checklist)
+// =====================================================
+
+export interface ChecklistTemplatesTable {
+  id: Generated<string>;
+  tipo_cadastro: TipoCadastro;
+  item_nome: string;
+  ordem: number;
+  obrigatorio: Generated<boolean>;
+  created_at: Generated<Date>;
+}
+
+export type ChecklistTemplate = Selectable<ChecklistTemplatesTable>;
+export type NewChecklistTemplate = Insertable<ChecklistTemplatesTable>;
+export type ChecklistTemplateUpdate = Updateable<ChecklistTemplatesTable>;
+
+// =====================================================
 // DATABASE INTERFACE
 // =====================================================
 
@@ -233,4 +289,7 @@ export interface Database {
   audit_logs: AuditLogsTable;
   delays: DelaysTable;
   tickets: TicketsTable;
+  checklists: ChecklistsTable;
+  checklist_templates: ChecklistTemplatesTable;
 }
+

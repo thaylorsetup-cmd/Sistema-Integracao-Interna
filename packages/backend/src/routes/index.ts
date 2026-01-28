@@ -9,8 +9,9 @@ import filaRoutes from './fila.routes.js';
 import documentsRoutes from './documents.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import ticketRoutes from './ticket.routes.js';
+import checklistRoutes from './checklist.routes.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Health check
 router.get('/health', (req, res) => {
@@ -29,5 +30,7 @@ router.use('/fila', filaRoutes);
 router.use('/documents', documentsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/tickets', ticketRoutes);
+router.use('/checklist', checklistRoutes);
 
 export default router;
+

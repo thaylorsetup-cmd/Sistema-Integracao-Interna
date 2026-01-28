@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/contexts/useAuth';
 import {
   connectSocket,
   disconnectSocket,
@@ -12,15 +12,18 @@ import {
   onSubmissionUpdated,
   onNotification,
   onDashboardStats,
+  onSubmissionDevolvida,
   getSocket,
   type SubmissionNewEvent,
   type SubmissionUpdatedEvent,
   type NotificationEvent,
   type DashboardStatsEvent,
+  type SubmissionDevolvidaEvent,
 } from '@/services/socket';
 
 // Re-export types para facilitar importação
-export type { SubmissionNewEvent, SubmissionUpdatedEvent, NotificationEvent, DashboardStatsEvent };
+export type { SubmissionNewEvent, SubmissionUpdatedEvent, NotificationEvent, DashboardStatsEvent, SubmissionDevolvidaEvent };
+export { onSubmissionDevolvida };
 
 // =====================================================
 // HOOK PRINCIPAL

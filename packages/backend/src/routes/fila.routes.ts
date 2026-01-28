@@ -13,7 +13,7 @@ import { getIO, emitSubmissionDelay } from '../socket/index.js';
 import type { AuthenticatedRequest } from '../types/api.js';
 import type { SubmissionStatus, SubmissionPriority } from '../types/database.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Schema para criar submission
 const createSubmissionSchema = z.object({
@@ -775,4 +775,157 @@ router.get('/:id/delays', requireAuth, requireAnyPermission('viewDashboardCadast
   }
 });
 
+/**
+ * POST /api/fila/:id/devolver
+ * Devolve uma submission para correção pelo operador
+ */
+router.post('/:id/devolver', requireAuth, requirePermission('aprovarCadastros'), async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { id } = req.params;
+    const { motivoDevolucao, categoria } = req.body;
+
+    if (!motivoDevolucao) {
+      return res.status(400).json({
+        success: false,
+        error: 'Motivo obrigatório',
+        message: 'Informe o motivo da devolução',
+      });
+    }
+
+    const existing = await db
+      .selectFrom('submissions')
+      .where('id', '=', id)
+      .select(['id', 'status', 'operador_id'])
+      .executeTakeFirst();
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Submission não encontrada',
+      });
+    }
+
+    if (existing.status !== 'em_analise' && existing.status !== 'pendente') {
+      return res.status(400).json({
+        success: false,
+        error: 'Status inválido',
+        message: 'Submission já foi finalizada',
+      });
+    }
+
+    const updated = await db
+      .updateTable('submissions')
+      .set({
+        status: 'devolvido',
+        analista_id: authReq.user!.id,
+        motivo_rejeicao: motivoDevolucao,
+        ...(categoria && { categoria_rejeicao: categoria }),
+      })
+      .where('id', '=', id)
+      .returning(['id', 'status', 'motivo_rejeicao', 'categoria_rejeicao'])
+      .executeTakeFirst();
+
+    logger.info(`Submission devolvida: ${id} por ${authReq.user?.email}`);
+
+    // Emitir evento Socket.IO para notificar operador
+    try {
+      const io = getIO();
+      io.to(`user:${existing.operador_id}`).emit('submission:devolvida', {
+        id,
+        motivoDevolucao,
+        categoria,
+        analista: authReq.user?.nome,
+      });
+    } catch (error) {
+      logger.warn('Socket.IO não disponível para emitir evento de devolução:', error);
+    }
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Cadastro devolvido para correção',
+    });
+  } catch (error) {
+    logger.error('Erro ao devolver submission:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao devolver cadastro',
+    });
+  }
+});
+
+/**
+ * POST /api/fila/:id/reenviar
+ * Reenvia uma submission devolvida após correções
+ */
+router.post('/:id/reenviar', requireAuth, requireAnyPermission('criarCadastros', 'viewDashboardOperador'), async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { id } = req.params;
+    const { observacoes } = req.body;
+
+    const existing = await db
+      .selectFrom('submissions')
+      .where('id', '=', id)
+      .select(['id', 'status', 'operador_id'])
+      .executeTakeFirst();
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Submission não encontrada',
+      });
+    }
+
+    // Verificar se o operador é o dono do cadastro
+    if (authReq.user?.role === 'operacional' && existing.operador_id !== authReq.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Sem permissão',
+        message: 'Você só pode reenviar seus próprios cadastros',
+      });
+    }
+
+    if (existing.status !== 'devolvido') {
+      return res.status(400).json({
+        success: false,
+        error: 'Status inválido',
+        message: 'Apenas submissions devolvidas podem ser reenviadas',
+      });
+    }
+
+    const updated = await db
+      .updateTable('submissions')
+      .set({
+        status: 'pendente',
+        motivo_rejeicao: null,
+        categoria_rejeicao: null,
+        analista_id: null,
+        data_inicio_analise: null,
+        data_conclusao: null,
+        data_envio: new Date(),
+        ...(observacoes && { observacoes }),
+      })
+      .where('id', '=', id)
+      .returning(['id', 'status', 'data_envio'])
+      .executeTakeFirst();
+
+    logger.info(`Submission reenviada: ${id} por ${authReq.user?.email}`);
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Cadastro reenviado para análise',
+    });
+  } catch (error) {
+    logger.error('Erro ao reenviar submission:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao reenviar cadastro',
+    });
+  }
+});
+
 export default router;
+

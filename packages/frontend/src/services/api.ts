@@ -233,6 +233,23 @@ export const filaApi = {
     const response = await apiClient.get<ApiResponse>('/fila/stats');
     return response.data;
   },
+
+  // Devolver para correção
+  devolver: async (id: string, motivoDevolucao: string, categoria?: string) => {
+    const response = await apiClient.post<ApiResponse<Submission>>(`/fila/${id}/devolver`, {
+      motivoDevolucao,
+      categoria
+    });
+    return response.data;
+  },
+
+  // Reenviar após correção
+  reenviar: async (id: string, observacoes?: string) => {
+    const response = await apiClient.post<ApiResponse<Submission>>(`/fila/${id}/reenviar`, {
+      observacoes
+    });
+    return response.data;
+  },
 };
 
 // =====================================================
