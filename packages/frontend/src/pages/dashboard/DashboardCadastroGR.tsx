@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Container } from '@/components/layout';
 import {
     FileSearch,
@@ -1061,9 +1062,9 @@ export function DashboardCadastroGR() {
                 />
             )}
 
-            {/* Modal de Rejeição - z-index alto para aparecer na frente do DetailModal */}
-            {showRejectModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Modal de Rejeição - usando Portal para garantir que apareça na frente */}
+            {showRejectModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowRejectModal(false)} />
                     <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1123,12 +1124,13 @@ export function DashboardCadastroGR() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Modal de Atraso - z-index alto para aparecer na frente do DetailModal */}
-            {showDelayModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Modal de Atraso - usando Portal para garantir que apareça na frente */}
+            {showDelayModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowDelayModal(false)} />
                     <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1177,7 +1179,8 @@ export function DashboardCadastroGR() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </Container>
     );
