@@ -16,7 +16,6 @@ WORKDIR /app
 # Copiar workspace config e lockfile da raiz
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/backend/package.json ./packages/backend/
-COPY packages/shared/package.json ./packages/shared/ 2>/dev/null || true
 
 # Instalar dependencias do backend (incluindo devDependencies para build)
 RUN cd packages/backend && pnpm install --frozen-lockfile
