@@ -47,14 +47,14 @@ services:
       - POSTGRES_USER=bbt_user
       - POSTGRES_PASSWORD=Allg4m3Str8p00L6kdji2ceDB
       - SESSION_SECRET=bbt-connect-session-secret-2025-production
-      - UPLOAD_DIR=/app/uploads
+      - UPLOAD_DIR=/app/packages/backend/uploads
       - MAX_FILE_SIZE=52428800
       - LOG_LEVEL=info
       - RATE_LIMIT_WINDOW_MS=60000
       - RATE_LIMIT_MAX=100
     volumes:
-      - uploads_data:/app/uploads
-      - logs_data:/app/logs
+      - uploads_data:/app/packages/backend/uploads
+      - logs_data:/app/packages/backend/logs
     networks:
       - bbt_internal
     deploy:

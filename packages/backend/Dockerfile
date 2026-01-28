@@ -59,15 +59,18 @@ COPY packages/backend/package.json ./packages/backend/
 # Instalar apenas dependencias de producao
 RUN cd packages/backend && pnpm install --prod --frozen-lockfile
 
-# Copiar build do stage anterior
-COPY --from=builder /app/packages/backend/dist ./dist
+# Copiar build do stage anterior (mantendo estrutura monorepo)
+COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
 
-# Criar diretorios necessarios (incluindo migrations se necessario)
-RUN mkdir -p uploads logs dist/db/migrations && \
+# Criar diretorios necessarios
+RUN mkdir -p packages/backend/uploads packages/backend/logs packages/backend/dist/db/migrations && \
     chown -R nodejs:nodejs /app
 
 # Usar usuario nao-root
 USER nodejs
+
+# Mudar para o diretório do backend
+WORKDIR /app/packages/backend
 
 # Expor porta
 EXPOSE 3001
