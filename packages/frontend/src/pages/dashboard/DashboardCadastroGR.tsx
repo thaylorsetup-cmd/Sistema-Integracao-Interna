@@ -1049,6 +1049,18 @@ export function DashboardCadastroGR() {
                 </div>
             </div>
 
+            {/* Detail Modal - Deve vir ANTES dos modais secundários para z-index funcionar corretamente */}
+            {selectedSubmission && (
+                <DetailModal
+                    submission={selectedSubmission}
+                    onClose={() => setSelectedSubmission(null)}
+                    onApprove={() => handleAction(selectedSubmission.id, 'approve')}
+                    onReject={() => handleAction(selectedSubmission.id, 'reject')}
+                    onDelay={() => handleAction(selectedSubmission.id, 'delay')}
+                    onStartAnalysis={() => handleAction(selectedSubmission.id, 'analyze')}
+                />
+            )}
+
             {/* Modal de Rejeição */}
             {showRejectModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -1166,18 +1178,6 @@ export function DashboardCadastroGR() {
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Modal */}
-            {selectedSubmission && (
-                <DetailModal
-                    submission={selectedSubmission}
-                    onClose={() => setSelectedSubmission(null)}
-                    onApprove={() => handleAction(selectedSubmission.id, 'approve')}
-                    onReject={() => handleAction(selectedSubmission.id, 'reject')}
-                    onDelay={() => handleAction(selectedSubmission.id, 'delay')}
-                    onStartAnalysis={() => handleAction(selectedSubmission.id, 'analyze')}
-                />
             )}
         </Container>
     );
