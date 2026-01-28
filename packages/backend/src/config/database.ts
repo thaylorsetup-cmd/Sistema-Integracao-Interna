@@ -10,15 +10,18 @@ import type { Database } from '../types/database.js';
 const { Pool } = pg;
 
 // Pool de conexoes PostgreSQL
+// Configurado para suportar 10-20 usuarios simultaneos
 export const pool = new Pool({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DB,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20, // Maximo de conexoes
-  idleTimeoutMillis: 30000, // Timeout de conexao ociosa
-  connectionTimeoutMillis: 2000, // Timeout de conexao
+  max: 25, // Aumentado de 20 para 25 conexoes (ideal para 10-20 usuarios)
+  min: 5, // Manter 5 conexoes sempre ativas
+  idleTimeoutMillis: 30000, // Fechar conexoes idle apos 30s
+  connectionTimeoutMillis: 5000, // Timeout de conexao em 5s (aumentado de 2s)
+  allowExitOnIdle: false, // Nao fechar pool automaticamente
 });
 
 // Eventos do pool
@@ -29,6 +32,15 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   logger.error('Erro no pool PostgreSQL:', err);
 });
+
+// Log de metricas do pool a cada 1 minuto (util para monitoramento)
+setInterval(() => {
+  logger.debug('Pool stats:', {
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount,
+  });
+}, 60000); // Log a cada 1 minuto
 
 // Instancia Kysely
 export const db = new Kysely<Database>({

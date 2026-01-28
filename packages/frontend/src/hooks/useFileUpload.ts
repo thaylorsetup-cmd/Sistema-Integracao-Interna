@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react';
 import { documentsApi, type DocumentType, type UploadProgress, type Document } from '@/services/api';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configurar worker do PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 // =====================================================
 // TIPOS
@@ -77,17 +81,64 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
     [maxFileSize, acceptedTypes]
   );
 
-  // Criar preview para imagens
-  const createPreview = (file: File): string | undefined => {
-    if (file.type.startsWith('image/')) {
-      return URL.createObjectURL(file);
+  // Gerar thumbnail da primeira página do PDF
+  const generatePDFThumbnail = async (file: File): Promise<string> => {
+    try {
+      // Ler arquivo como ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+
+      // Carregar documento PDF
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+
+      // Pegar primeira página
+      const page = await pdf.getPage(1);
+
+      // Definir escala para thumbnail pequeno (96x96 aprox)
+      const viewport = page.getViewport({ scale: 0.3 });
+
+      // Criar canvas temporário
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Falha ao criar contexto do canvas');
+      }
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      // Renderizar página no canvas
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+
+      // Converter canvas para data URL (base64)
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Erro ao gerar thumbnail do PDF:', error);
+      // Retornar string vazia para usar ícone padrão em caso de erro
+      return '';
     }
+  };
+
+  // Criar preview para imagens e PDFs
+  const createPreview = async (file: File): Promise<string | undefined> => {
+    if (file.type.startsWith('image/')) {
+      // Para imagens: usar blob URL
+      return URL.createObjectURL(file);
+    } else if (file.type === 'application/pdf') {
+      // Para PDFs: gerar thumbnail da primeira página
+      return await generatePDFThumbnail(file);
+    }
+    // Para outros tipos: sem preview
     return undefined;
   };
 
   // Adicionar arquivos
   const addFiles = useCallback(
-    (newFiles: FileList | File[], tipo: DocumentType) => {
+    async (newFiles: FileList | File[], tipo: DocumentType) => {
       const fileArray = Array.from(newFiles);
 
       if (files.length + fileArray.length > maxFiles) {
@@ -95,18 +146,21 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
         return;
       }
 
-      const uploadFiles: UploadFile[] = fileArray.map((file) => {
-        const error = validateFile(file);
-        return {
-          id: generateId(),
-          file,
-          tipo,
-          preview: createPreview(file),
-          progress: 0,
-          status: error ? 'error' : 'pending',
-          error: error || undefined,
-        };
-      });
+      const uploadFiles: UploadFile[] = await Promise.all(
+        fileArray.map(async (file) => {
+          const error = validateFile(file);
+          const preview = await createPreview(file);
+          return {
+            id: generateId(),
+            file,
+            tipo,
+            preview,
+            progress: 0,
+            status: error ? 'error' : 'pending',
+            error: error || undefined,
+          };
+        })
+      );
 
       setFiles((prev) => [...prev, ...uploadFiles]);
     },

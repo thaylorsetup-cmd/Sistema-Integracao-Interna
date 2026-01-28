@@ -15,7 +15,7 @@ import {
   getFilePath,
   fileExists,
 } from '../middlewares/upload.middleware.js';
-import { uploadRateLimiter } from '../middlewares/rate-limit.middleware.js';
+import { uploadRateLimiter, downloadRateLimiter } from '../middlewares/rate-limit.middleware.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import type { AuthenticatedRequest } from '../types/api.js';
@@ -170,7 +170,7 @@ router.get('/:id', requireAuth, async (req, res) => {
  * GET /api/documents/:id/download
  * Download do arquivo
  */
-router.get('/:id/download', requireAuth, async (req, res) => {
+router.get('/:id/download', requireAuth, downloadRateLimiter, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -210,6 +210,82 @@ router.get('/:id/download', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erro ao fazer download',
+    });
+  }
+});
+
+/**
+ * GET /api/documents/:id/preview
+ * Preview do arquivo (inline)
+ */
+router.get('/:id/preview', requireAuth, downloadRateLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const document = await db
+      .selectFrom('documents')
+      .where('id', '=', id)
+      .select(['caminho', 'nome_original', 'mime_type', 'tamanho_bytes'])
+      .executeTakeFirst();
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Documento nao encontrado',
+      });
+    }
+
+    const filePath = getFilePath(document.caminho);
+
+    if (!fileExists(document.caminho)) {
+      logger.error(`Arquivo nao encontrado: ${filePath}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Arquivo nao encontrado no servidor',
+      });
+    }
+
+    // Headers para visualização inline
+    res.setHeader('Content-Type', document.mime_type);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(document.nome_original)}"`
+    );
+    res.setHeader('Content-Length', document.tamanho_bytes.toString());
+
+    // Suporte a range requests (HTTP 206) para PDFs grandes
+    const stat = fs.statSync(filePath);
+    const range = req.headers.range;
+
+    if (range) {
+      // Parse range header
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+
+      if (start >= stat.size || end >= stat.size) {
+        res.status(416).setHeader('Content-Range', `bytes */${stat.size}`);
+        return res.end();
+      }
+
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+      res.setHeader('Content-Length', (end - start + 1).toString());
+      res.setHeader('Accept-Ranges', 'bytes');
+
+      const stream = fs.createReadStream(filePath, { start, end });
+      stream.pipe(res);
+    } else {
+      // Streaming completo
+      res.setHeader('Accept-Ranges', 'bytes');
+      const stream = fs.createReadStream(filePath);
+      stream.pipe(res);
+    }
+  } catch (error) {
+    logger.error('Erro ao fazer preview:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao fazer preview',
     });
   }
 });

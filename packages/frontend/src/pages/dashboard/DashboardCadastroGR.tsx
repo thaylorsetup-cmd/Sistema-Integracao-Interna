@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { filaApi, documentsApi, type Submission as ApiSubmission, type Document as ApiDocument } from '@/services/api';
 import { useFilaSocket, type SubmissionNewEvent, type SubmissionUpdatedEvent } from '@/hooks/useSocket';
+import { PreviewModal } from '@/components/PreviewModal';
 
 // Tipos de documentos (igual ao DashboardOperador)
 const DOCUMENT_TYPES = [
@@ -59,6 +60,7 @@ interface DocumentFile {
     customDescription?: string;
     filename: string;
     url: string;
+    mimeType?: string;
 }
 
 interface Delay {
@@ -79,6 +81,8 @@ interface Submission {
     prioridade: 'normal' | 'alta' | 'urgente';
     delaysCount?: number;
     delays?: Delay[];
+    created_at: string;
+    data_conclusao?: string | null;
 }
 
 // Mapear status da API para status local
@@ -123,6 +127,30 @@ function calcularTempoEspera(createdAt: string): string {
     return `${diffDays}d`;
 }
 
+// Calcular tempo total desde envio até conclusão
+function calcularTempoTotal(dataEnvio: string, dataConclusao?: string | null): string {
+    if (!dataConclusao) return '—';
+
+    const inicio = new Date(dataEnvio);
+    const fim = new Date(dataConclusao);
+    const diffMs = fim.getTime() - inicio.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+
+    // Formatar de acordo com a duração
+    if (days > 0) {
+        return `${days}d ${remainingHours}h`;
+    } else if (hours > 0) {
+        return `${hours}h ${minutes}min`;
+    } else {
+        return `${minutes}min`;
+    }
+}
+
 // Converter submission da API para o formato local
 function mapApiSubmission(apiSubmission: ApiSubmission): Submission {
     const data = new Date(apiSubmission.data_envio || apiSubmission.created_at);
@@ -138,11 +166,14 @@ function mapApiSubmission(apiSubmission: ApiSubmission): Submission {
             type: doc.tipo,
             filename: doc.nome_original,
             url: `/api/documents/${doc.id}/download`,
+            mimeType: (doc as any).mime_type || 'application/octet-stream',
         })),
         tempoEspera: ['aprovado', 'rejeitado'].includes(apiSubmission.status)
             ? '—'
             : calcularTempoEspera(apiSubmission.created_at),
         prioridade: mapApiPriority(apiSubmission.prioridade || 'normal'),
+        created_at: apiSubmission.created_at,
+        data_conclusao: (apiSubmission as any).data_conclusao || null,
     };
 }
 
@@ -229,6 +260,7 @@ function DetailModal({
     const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
     const [delays, setDelays] = useState<Delay[]>([]);
     const [loadingDelays, setLoadingDelays] = useState(false);
+    const [previewDocument, setPreviewDocument] = useState<{ id: string; name: string; mimeType: string } | null>(null);
 
     // Carregar delays ao abrir modal
     useEffect(() => {
@@ -316,7 +348,7 @@ function DetailModal({
                 {/* Conteúdo Scrollável */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
                     {/* Info Rápida */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className={`grid ${['aprovado', 'rejeitado'].includes(submission.status) ? 'grid-cols-4' : 'grid-cols-3'} gap-3`}>
                         <div className="bg-white/5 rounded-xl p-3 border border-white/10">
                             <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
                                 <User className="w-3 h-3" />
@@ -338,6 +370,25 @@ function DetailModal({
                             </div>
                             <p className="text-amber-400 font-bold">{submission.tempoEspera}</p>
                         </div>
+                        {/* Tempo Total (apenas para concluídos) */}
+                        {['aprovado', 'rejeitado'].includes(submission.status) && (
+                            <div className={`rounded-xl p-3 border ${submission.status === 'aprovado'
+                                ? 'bg-emerald-500/10 border-emerald-500/20'
+                                : 'bg-red-500/10 border-red-500/20'
+                                }`}>
+                                <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
+                                    <Clock className="w-3 h-3" />
+                                    Tempo Total
+                                </div>
+                                <p className={`text-2xl font-bold ${submission.status === 'aprovado' ? 'text-emerald-400' : 'text-red-400'
+                                    }`}>
+                                    {calcularTempoTotal(submission.created_at, submission.data_conclusao)}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Envio → Conclusão
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Botão Download Todos */}
@@ -393,11 +444,15 @@ function DetailModal({
                                                 </div>
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <button
-                                                        onClick={() => window.open(`/api/documents/${file.id}/download`, '_blank')}
+                                                        onClick={() => setPreviewDocument({
+                                                            id: file.id,
+                                                            name: file.filename,
+                                                            mimeType: file.mimeType || 'application/octet-stream'
+                                                        })}
                                                         className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                                         title="Visualizar"
                                                     >
-                                                        <ExternalLink className="w-4 h-4 text-slate-400 hover:text-white" />
+                                                        <Eye className="w-4 h-4 text-slate-400 hover:text-white" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDownloadFile(file)}
@@ -479,6 +534,16 @@ function DetailModal({
                     </button>
                 </div>
             </div>
+
+            {/* PreviewModal */}
+            {previewDocument && (
+                <PreviewModal
+                    documentId={previewDocument.id}
+                    documentName={previewDocument.name}
+                    mimeType={previewDocument.mimeType}
+                    onClose={() => setPreviewDocument(null)}
+                />
+            )}
         </div>
     );
 }
@@ -986,8 +1051,8 @@ export function DashboardCadastroGR() {
 
             {/* Modal de Rejeição */}
             {showRejectModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowRejectModal(false)} />
                     <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-xl font-bold text-white">Rejeitar Cadastro</h3>
@@ -1051,8 +1116,8 @@ export function DashboardCadastroGR() {
 
             {/* Modal de Atraso */}
             {showDelayModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDelayModal(false)} />
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowDelayModal(false)} />
                     <div className="relative w-full max-w-md bg-slate-950 rounded-2xl border border-white/20 p-6 space-y-4">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-xl font-bold text-white flex items-center gap-2">

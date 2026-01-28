@@ -10,11 +10,11 @@ import type { AuthenticatedRequest } from '../types/api.js';
 
 /**
  * Rate limiter padrao
- * 100 requests por minuto por IP/usuario
+ * 150 requests por minuto por IP/usuario (aumentado para 10-20 usuarios simultaneos)
  */
 export const defaultRateLimiter = rateLimit({
-  windowMs: env.RATE_LIMIT_WINDOW_MS,
-  max: env.RATE_LIMIT_MAX,
+  windowMs: 60 * 1000, // 1 minuto
+  max: 150, // Aumentado de 100 para 150
   standardHeaders: true,
   legacyHeaders: false,
 
@@ -36,7 +36,7 @@ export const defaultRateLimiter = rateLimit({
       success: false,
       error: 'Muitas requisicoes',
       message: 'Limite de requisicoes excedido. Tente novamente em alguns minutos.',
-      retryAfter: Math.ceil(env.RATE_LIMIT_WINDOW_MS / 1000),
+      retryAfter: 60, // 1 minuto
     });
   },
 
@@ -79,11 +79,11 @@ export const authRateLimiter = rateLimit({
 
 /**
  * Rate limiter para uploads
- * 50 uploads por hora
+ * 30 uploads por minuto (mais permissivo para multiplos usuarios)
  */
 export const uploadRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max: 50,
+  windowMs: 60 * 1000, // 1 minuto
+  max: 30, // 30 uploads por minuto
   standardHeaders: true,
   legacyHeaders: false,
 
@@ -102,8 +102,39 @@ export const uploadRateLimiter = rateLimit({
     res.status(429).json({
       success: false,
       error: 'Limite de uploads excedido',
-      message: 'Limite de uploads por hora excedido. Tente novamente mais tarde.',
-      retryAfter: 3600,
+      message: 'Muitos uploads simultaneos. Aguarde 1 minuto.',
+      retryAfter: 60, // 1 minuto
+    });
+  },
+});
+
+/**
+ * Rate limiter para downloads
+ * 50 downloads por minuto
+ */
+export const downloadRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 50, // 50 downloads por minuto
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  keyGenerator: (req: Request): string => {
+    const authReq = req as AuthenticatedRequest;
+    if (authReq.user?.id) {
+      return `download_${authReq.user.id}`;
+    }
+    return `download_ip_${req.ip || 'unknown'}`;
+  },
+
+  handler: (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    logger.warn(`Rate limit de download excedido para: ${authReq.user?.email || req.ip}`);
+
+    res.status(429).json({
+      success: false,
+      error: 'Limite de downloads excedido',
+      message: 'Muitos downloads simultaneos. Aguarde 1 minuto.',
+      retryAfter: 60,
     });
   },
 });
