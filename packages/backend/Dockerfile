@@ -62,11 +62,8 @@ RUN cd packages/backend && pnpm install --prod --frozen-lockfile
 # Copiar build do stage anterior
 COPY --from=builder /app/packages/backend/dist ./dist
 
-# Copiar migracoes SQL (se existirem)
-COPY --from=builder /app/packages/backend/src/db/migrations ./dist/db/migrations 2>/dev/null || true
-
-# Criar diretorios necessarios
-RUN mkdir -p uploads logs && \
+# Criar diretorios necessarios (incluindo migrations se necessario)
+RUN mkdir -p uploads logs dist/db/migrations && \
     chown -R nodejs:nodejs /app
 
 # Usar usuario nao-root
