@@ -1,52 +1,70 @@
 # =====================================================
-# BBT CONNECT BACKEND - DOCKERFILE
-# Build multi-stage para producao
+# BBT CONNECT BACKEND - DOCKERFILE (MONOREPO)
+# Build multi-stage para producao com suporte a pnpm workspace
+# IMPORTANTE: Build context deve ser a RAIZ da monorepo
+# docker build -f packages/backend/Dockerfile .
 # =====================================================
 
-# Stage 1: Build
+# Stage 1: Instalar dependencias
+FROM node:20-alpine AS deps
+
+# Instalar pnpm globalmente
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copiar workspace config e lockfile da raiz
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/shared/package.json ./packages/shared/ 2>/dev/null || true
+
+# Instalar dependencias do backend (incluindo devDependencies para build)
+RUN cd packages/backend && pnpm install --frozen-lockfile
+
+# =====================================================
+# Stage 2: Build TypeScript
 FROM node:20-alpine AS builder
 
-WORKDIR /app
-
 # Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copiar arquivos de dependencias
-COPY package.json ./
+WORKDIR /app
 
-# Instalar dependencias (incluindo devDependencies para build)
-RUN pnpm install
+# Copiar node_modules do stage deps
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/backend/node_modules ./packages/backend/node_modules
 
-# Copiar codigo fonte
-COPY . .
+# Copiar codigo fonte do backend
+COPY packages/backend ./packages/backend
 
-# Build TypeScript
-RUN pnpm build
+# Build TypeScript com tsup
+RUN cd packages/backend && pnpm build
 
 # =====================================================
-# Stage 2: Production
+# Stage 3: Production
 FROM node:20-alpine AS production
-
-WORKDIR /app
 
 # Instalar pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
 
 # Criar usuario nao-root
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copiar arquivos de dependencias
-COPY package.json ./
+# Copiar workspace config (necessario para pnpm install --prod)
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/backend/package.json ./packages/backend/
 
 # Instalar apenas dependencias de producao
-RUN pnpm install --prod
+RUN cd packages/backend && pnpm install --prod --frozen-lockfile
 
 # Copiar build do stage anterior
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/packages/backend/dist ./dist
 
-# Copiar migracoes SQL
-COPY --from=builder /app/src/db/migrations ./dist/db/migrations
+# Copiar migracoes SQL (se existirem)
+COPY --from=builder /app/packages/backend/src/db/migrations ./dist/db/migrations 2>/dev/null || true
 
 # Criar diretorios necessarios
 RUN mkdir -p uploads logs && \

@@ -34,8 +34,8 @@ services:
   backend:
     image: bbtconnect-backend:latest
     build:
-      context: packages/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/backend/Dockerfile
     environment:
       - NODE_ENV=production
       - PORT=3001
