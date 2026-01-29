@@ -11,8 +11,8 @@ services:
       context: .
       dockerfile: packages/frontend/Dockerfile
       args:
-        VITE_API_URL: https://control.bbttransportes.com.br
-        VITE_WS_URL: wss://control.bbttransportes.com.br
+        VITE_API_URL: http://control.bbttransportes.com.br
+        VITE_WS_URL: ws://control.bbttransportes.com.br
     networks:
       - network_public
       - bbt_internal
@@ -25,8 +25,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.bbtconnect.rule=Host(`control.bbttransportes.com.br`)"
-        - "traefik.http.routers.bbtconnect.entrypoints=websecure"
-        - "traefik.http.routers.bbtconnect.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.bbtconnect.entrypoints=web"
         - "traefik.http.services.bbtconnect.loadbalancer.server.port=80"
         - "traefik.docker.network=network_public"
 
@@ -39,8 +38,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - BASE_URL=https://control.bbttransportes.com.br
-      - CORS_ORIGIN=https://control.bbttransportes.com.br
+      - BASE_URL=http://control.bbttransportes.com.br
+      - CORS_ORIGIN=http://control.bbttransportes.com.br
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=bbt_connect
