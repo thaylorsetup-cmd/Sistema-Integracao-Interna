@@ -64,8 +64,8 @@ services:
       - backend_logs:/app/packages/backend/logs
     networks:
       - bbt_network
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,8 +87,8 @@ services:
     restart: unless-stopped
     networks:
       - bbt_network
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     healthcheck:
