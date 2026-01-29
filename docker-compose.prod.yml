@@ -97,14 +97,13 @@ services:
       retries: 3
 
   # =====================================================
-  # FRONTEND (NGINX)
+  # FRONTEND (NGINX) - Via Traefik
   # =====================================================
   frontend:
     image: bbtconnect-frontend:latest
     networks:
       - bbt_network
-    ports:
-      - "80:80"
+      - traefik-public
     deploy:
       replicas: 1
       restart_policy:
@@ -115,6 +114,13 @@ services:
         parallelism: 1
         delay: 10s
         order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.http.routers.bbt-frontend.rule=Host(`control.bbttransportes.com.br`)"
+        - "traefik.http.routers.bbt-frontend.entrypoints=websecure"
+        - "traefik.http.routers.bbt-frontend.tls.certresolver=letsencrypt"
+        - "traefik.http.services.bbt-frontend.loadbalancer.server.port=80"
     depends_on:
       - backend
     healthcheck:
@@ -138,3 +144,5 @@ networks:
   bbt_network:
     driver: overlay
     attachable: true
+  traefik-public:
+    external: true
