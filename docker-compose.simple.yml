@@ -20,7 +20,7 @@ services:
     networks:
       - bbt_network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U bbt_user -d bbt_connect" ]
+      test: ["CMD-SHELL", "pg_isready -U bbt_user -d bbt_connect"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,7 +38,7 @@ services:
     networks:
       - bbt_network
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -72,14 +72,14 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health" ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       start_period: 60s
       retries: 3
 
   # =====================================================
-  # FRONTEND (NGINX) - Via Traefik
+  # FRONTEND (NGINX)
   # =====================================================
   frontend:
     image: bbtconnect-frontend:latest
@@ -87,18 +87,12 @@ services:
     restart: unless-stopped
     networks:
       - bbt_network
-      - network_public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=network_public"
-      - "traefik.http.routers.bbt-frontend.rule=Host(`control.bbttransportes.com.br`)"
-      - "traefik.http.routers.bbt-frontend.entrypoints=websecure"
-      - "traefik.http.routers.bbt-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.bbt-frontend.loadbalancer.server.port=80"
+    ports:
+      - "80:80"
     depends_on:
       - backend
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       start_period: 10s
@@ -117,5 +111,3 @@ volumes:
 networks:
   bbt_network:
     driver: bridge
-  network_public:
-    external: true
