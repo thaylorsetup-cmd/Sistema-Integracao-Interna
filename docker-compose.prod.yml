@@ -18,7 +18,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      bbt_network:
+      network_public:
         aliases:
           - postgres
     deploy:
@@ -45,7 +45,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      bbt_network:
+      network_public:
         aliases:
           - redis
     deploy:
@@ -78,7 +78,7 @@ services:
       - backend_uploads:/app/packages/backend/uploads
       - backend_logs:/app/packages/backend/logs
     networks:
-      bbt_network:
+      network_public:
         aliases:
           - backend
     ports:
@@ -93,9 +93,6 @@ services:
         parallelism: 1
         delay: 10s
         order: start-first
-    depends_on:
-      - postgres
-      - redis
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health" ]
       interval: 30s
@@ -109,10 +106,9 @@ services:
   frontend:
     image: bbtconnect-frontend:latest
     networks:
-      bbt_network:
+      network_public:
         aliases:
           - frontend
-      network_public:
     deploy:
       replicas: 1
       restart_policy:
@@ -130,8 +126,6 @@ services:
         - "traefik.http.routers.bbt-frontend.entrypoints=websecure"
         - "traefik.http.routers.bbt-frontend.tls.certresolver=letsencrypt"
         - "traefik.http.services.bbt-frontend.loadbalancer.server.port=80"
-    depends_on:
-      - backend
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
       interval: 30s
@@ -150,8 +144,5 @@ volumes:
     driver: local
 
 networks:
-  bbt_network:
-    driver: overlay
-    attachable: true
   network_public:
     external: true
