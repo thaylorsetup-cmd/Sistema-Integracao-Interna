@@ -18,7 +18,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - bbt_network
+      bbt_network:
+        aliases:
+          - postgres
     deploy:
       replicas: 1
       restart_policy:
@@ -29,7 +31,7 @@ services:
         constraints:
           - node.role == manager
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbt_user} -d ${POSTGRES_DB:-bbt_connect}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbt_user} -d ${POSTGRES_DB:-bbt_connect}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +45,9 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - bbt_network
+      bbt_network:
+        aliases:
+          - redis
     deploy:
       replicas: 1
       restart_policy:
@@ -51,7 +55,7 @@ services:
         delay: 5s
         max_attempts: 3
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,7 +78,9 @@ services:
       - backend_uploads:/app/packages/backend/uploads
       - backend_logs:/app/packages/backend/logs
     networks:
-      - bbt_network
+      bbt_network:
+        aliases:
+          - backend
     ports:
       - "3001:3001"
     deploy:
@@ -91,7 +97,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health" ]
       interval: 30s
       timeout: 10s
       start_period: 40s
@@ -103,8 +109,10 @@ services:
   frontend:
     image: bbtconnect-frontend:latest
     networks:
-      - bbt_network
-      - network_public
+      bbt_network:
+        aliases:
+          - frontend
+      network_public:
     deploy:
       replicas: 1
       restart_policy:
@@ -125,7 +133,7 @@ services:
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
       interval: 30s
       timeout: 10s
       start_period: 5s
