@@ -85,11 +85,19 @@ export async function requireAuth(
 
     next();
   } catch (error) {
-    logger.error('Erro na autenticacao:', error);
+    // Log detalhado do erro para debugging
+    logger.error('Erro na autenticacao:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      token: req.cookies?.bbt_session ? 'presente' : 'ausente',
+      userId: req.user?.id || 'nao disponivel',
+    });
+
     res.status(500).json({
       success: false,
       error: 'Erro interno',
       message: 'Erro ao verificar autenticacao',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined,
     });
   }
 }
