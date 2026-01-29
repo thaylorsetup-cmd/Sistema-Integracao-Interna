@@ -2,6 +2,7 @@
  * Componente Minhas Corridas - Auditoria Pessoal do Operador
  * O operador pode ver todos os cadastros enviados, status e historico
  * Cadastros devolvidos aparecem aqui para correcao
+ * Permite visualizar, adicionar e remover documentos
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Container } from '@/components/layout';
@@ -26,12 +27,17 @@ import {
     ChevronUp,
     Package,
     ClipboardCheck,
-    XCircle
+    XCircle,
+    Plus,
+    Trash2,
+    FileImage,
+    Upload,
 } from 'lucide-react';
-import { filaApi, type Submission } from '@/services/api';
+import { filaApi, documentsApi, type Submission, type Document as DocType, type DocumentType } from '@/services/api';
 import { useFilaSocket, type SubmissionUpdatedEvent, onSubmissionDevolvida, type SubmissionDevolvidaEvent } from '@/hooks/useSocket';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/contexts/useAuth';
+import { PreviewModal } from '@/components/PreviewModal';
 
 interface ViagemItem {
     id: string;
@@ -99,6 +105,16 @@ function getStatusConfig(status: string) {
     return configs[status] || { label: status, color: 'text-slate-400', bgColor: 'bg-slate-500/20', icon: FileText };
 }
 
+// Tipos de documento disponiveis
+const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
+    { value: 'cnh', label: 'CNH' },
+    { value: 'crlv', label: 'CRLV' },
+    { value: 'comprovante_endereco', label: 'Comprovante de Endereco' },
+    { value: 'contrato', label: 'Contrato' },
+    { value: 'foto_veiculo', label: 'Foto do Veiculo' },
+    { value: 'outro', label: 'Outro' },
+];
+
 type FilterStatus = 'todos' | 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado' | 'devolvido';
 
 export function MeusDevolvidos() {
@@ -112,6 +128,15 @@ export function MeusDevolvidos() {
     const [reenviandoId, setReenviandoId] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Estados para gerenciamento de documentos
+    const [documents, setDocuments] = useState<DocType[]>([]);
+    const [loadingDocs, setLoadingDocs] = useState(false);
+    const [previewDoc, setPreviewDoc] = useState<DocType | null>(null);
+    const [uploadingDoc, setUploadingDoc] = useState(false);
+    const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+    const [selectedDocType, setSelectedDocType] = useState<DocumentType>('outro');
+    const [showDocTypeSelect, setShowDocTypeSelect] = useState(false);
 
     // Conectar ao socket
     useSocket();
@@ -144,6 +169,85 @@ export function MeusDevolvidos() {
             setIsRefreshing(false);
         }
     }, []);
+
+    // Carregar documentos de uma submission
+    const loadDocuments = useCallback(async (submissionId: string) => {
+        setLoadingDocs(true);
+        try {
+            const response = await documentsApi.list({ submissionId });
+            if (response.success && response.data) {
+                setDocuments(response.data);
+            } else {
+                setDocuments([]);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar documentos:', err);
+            setDocuments([]);
+        } finally {
+            setLoadingDocs(false);
+        }
+    }, []);
+
+    // Upload de novo documento
+    const handleUploadDoc = useCallback(async (file: File, tipo: DocumentType, submissionId: string) => {
+        setUploadingDoc(true);
+        try {
+            const response = await documentsApi.upload(file, submissionId, tipo);
+            if (response.success) {
+                loadDocuments(submissionId);
+                // Atualizar contagem de documentos
+                setViagens(prev => prev.map(v =>
+                    v.id === submissionId
+                        ? { ...v, documentosCount: v.documentosCount + 1 }
+                        : v
+                ));
+            } else {
+                alert(response.error || 'Erro ao enviar documento');
+            }
+        } catch (err) {
+            alert('Erro de conexao ao enviar documento');
+        } finally {
+            setUploadingDoc(false);
+            setShowDocTypeSelect(false);
+        }
+    }, [loadDocuments]);
+
+    // Deletar documento
+    const handleDeleteDoc = useCallback(async (docId: string, submissionId: string) => {
+        if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+
+        setDeletingDocId(docId);
+        try {
+            const response = await documentsApi.delete(docId);
+            if (response.success) {
+                loadDocuments(submissionId);
+                // Atualizar contagem de documentos
+                setViagens(prev => prev.map(v =>
+                    v.id === submissionId
+                        ? { ...v, documentosCount: Math.max(0, v.documentosCount - 1) }
+                        : v
+                ));
+            } else {
+                alert(response.error || 'Erro ao excluir documento');
+            }
+        } catch (err) {
+            alert('Erro de conexao ao excluir documento');
+        } finally {
+            setDeletingDocId(null);
+        }
+    }, [loadDocuments]);
+
+    // Handler para expandir card e carregar documentos
+    const handleExpandCard = useCallback((itemId: string) => {
+        const newExpandedId = expandedId === itemId ? null : itemId;
+        setExpandedId(newExpandedId);
+
+        if (newExpandedId) {
+            loadDocuments(newExpandedId);
+        } else {
+            setDocuments([]);
+        }
+    }, [expandedId, loadDocuments]);
 
     useEffect(() => {
         loadViagens();
@@ -411,7 +515,7 @@ export function MeusDevolvidos() {
                                 {/* Header do Card */}
                                 <div
                                     className="p-4 cursor-pointer"
-                                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                                    onClick={() => handleExpandCard(item.id)}
                                 >
                                     <div className="flex items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -455,7 +559,7 @@ export function MeusDevolvidos() {
 
                                 {/* Detalhes expandidos */}
                                 {isExpanded && (
-                                    <div className="px-4 pb-4 border-t border-white/10 pt-4 space-y-3">
+                                    <div className="px-4 pb-4 border-t border-white/10 pt-4 space-y-4">
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                             <div>
                                                 <p className="text-slate-500 text-xs">CPF</p>
@@ -467,7 +571,7 @@ export function MeusDevolvidos() {
                                             </div>
                                             <div>
                                                 <p className="text-slate-500 text-xs">Documentos</p>
-                                                <p className="text-white">{item.documentosCount} anexos</p>
+                                                <p className="text-white">{documents.length || item.documentosCount} anexos</p>
                                             </div>
                                             <div>
                                                 <p className="text-slate-500 text-xs">Tipo</p>
@@ -486,9 +590,143 @@ export function MeusDevolvidos() {
                                             </div>
                                         )}
 
+                                        {/* Seção de Documentos */}
+                                        <div className="bg-slate-800/30 rounded-lg p-4 border border-white/5">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                                    <FileImage className="w-4 h-4" />
+                                                    Documentos ({loadingDocs ? '...' : documents.length})
+                                                </h4>
+
+                                                {/* Botão Adicionar Documento (apenas para devolvidos) */}
+                                                {item.status === 'devolvido' && (
+                                                    <div className="relative">
+                                                        {showDocTypeSelect ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <select
+                                                                    value={selectedDocType}
+                                                                    onChange={(e) => setSelectedDocType(e.target.value as DocumentType)}
+                                                                    className="bg-slate-700 text-white text-xs rounded px-2 py-1 border border-white/20"
+                                                                >
+                                                                    {DOCUMENT_TYPES.map(dt => (
+                                                                        <option key={dt.value} value={dt.value}>{dt.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <label className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded text-emerald-400 text-xs cursor-pointer border border-emerald-500/30">
+                                                                    {uploadingDoc ? (
+                                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                                    ) : (
+                                                                        <Upload className="w-3 h-3" />
+                                                                    )}
+                                                                    Enviar
+                                                                    <input
+                                                                        type="file"
+                                                                        className="hidden"
+                                                                        accept="image/*,.pdf"
+                                                                        disabled={uploadingDoc}
+                                                                        onChange={(e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            if (file) {
+                                                                                handleUploadDoc(file, selectedDocType, item.id);
+                                                                            }
+                                                                            e.target.value = '';
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                                <button
+                                                                    onClick={() => setShowDocTypeSelect(false)}
+                                                                    className="p-1 hover:bg-white/10 rounded"
+                                                                >
+                                                                    <X className="w-3 h-3 text-slate-400" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setShowDocTypeSelect(true)}
+                                                                className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded text-emerald-400 text-xs border border-emerald-500/30"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                                Adicionar
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Lista de Documentos */}
+                                            {loadingDocs ? (
+                                                <div className="flex items-center justify-center py-6">
+                                                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                                                    <span className="ml-2 text-sm text-slate-400">Carregando documentos...</span>
+                                                </div>
+                                            ) : documents.length === 0 ? (
+                                                <p className="text-slate-500 text-sm text-center py-4">
+                                                    Nenhum documento anexado
+                                                </p>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                                    {documents.map((doc) => (
+                                                        <div
+                                                            key={doc.id}
+                                                            className="group relative bg-slate-700/50 rounded-lg p-3 border border-white/10 hover:border-blue-500/30 transition-all"
+                                                        >
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPreviewDoc(doc);
+                                                                }}
+                                                                className="w-full text-left"
+                                                            >
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                                                    <span className="text-xs text-white truncate flex-1" title={doc.nome_original}>
+                                                                        {doc.nome_original}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[10px] text-slate-500 capitalize">
+                                                                    {doc.tipo.replace(/_/g, ' ')}
+                                                                </p>
+                                                            </button>
+
+                                                            {/* Botão de visualizar */}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPreviewDoc(doc);
+                                                                }}
+                                                                className="absolute top-1 right-8 p-1 bg-blue-500/20 hover:bg-blue-500/30 rounded text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Visualizar"
+                                                            >
+                                                                <Eye className="w-3 h-3" />
+                                                            </button>
+
+                                                            {/* Botão Excluir (apenas para devolvidos) */}
+                                                            {item.status === 'devolvido' && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteDoc(doc.id, item.id);
+                                                                    }}
+                                                                    disabled={deletingDocId === doc.id}
+                                                                    className="absolute top-1 right-1 p-1 bg-red-500/20 hover:bg-red-500/30 rounded text-red-400 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                                                    title="Excluir"
+                                                                >
+                                                                    {deletingDocId === doc.id ? (
+                                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    )}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
                                         {/* Acoes */}
                                         {item.status === 'devolvido' && (
-                                            <div className="flex justify-end">
+                                            <div className="flex justify-end pt-2">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -542,6 +780,16 @@ export function MeusDevolvidos() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Preview de Documento */}
+            {previewDoc && (
+                <PreviewModal
+                    documentId={previewDoc.id}
+                    documentName={previewDoc.nome_original}
+                    mimeType={previewDoc.mime_type}
+                    onClose={() => setPreviewDoc(null)}
+                />
+            )}
         </Container>
     );
 }

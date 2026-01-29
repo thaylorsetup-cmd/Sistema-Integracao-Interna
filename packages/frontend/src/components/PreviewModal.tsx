@@ -1,8 +1,9 @@
 /**
  * PreviewModal - Modal para visualização de documentos
  * Suporta imagens e PDFs com controles de zoom e navegação
+ * Inclui timeout, retry e fallback para download
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import {
     X,
@@ -14,6 +15,7 @@ import {
     FileText,
     Image as ImageIcon,
     AlertCircle,
+    RefreshCw,
 } from 'lucide-react';
 import { documentsApi } from '@/services/api';
 
@@ -31,6 +33,10 @@ interface PreviewModalProps {
     onClose: () => void;
 }
 
+// Timeouts em ms
+const TIMEOUT_PDF = 30000;  // 30 segundos para PDFs
+const TIMEOUT_IMAGE = 15000; // 15 segundos para imagens
+
 export function PreviewModal({ documentId, documentName, mimeType, onClose }: PreviewModalProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,11 +44,47 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [downloading, setDownloading] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const isPDF = mimeType === 'application/pdf';
     const isImage = mimeType.startsWith('image/');
 
-    const previewUrl = `/api/documents/${documentId}/preview`;
+    // URL com parametro para forçar reload em retry
+    const previewUrl = `/api/documents/${documentId}/preview?t=${retryCount}`;
+
+    // Timeout para evitar loading infinito
+    useEffect(() => {
+        const timeout = isPDF ? TIMEOUT_PDF : TIMEOUT_IMAGE;
+
+        timeoutRef.current = setTimeout(() => {
+            if (loading) {
+                setLoading(false);
+                setError('Tempo limite excedido. O documento pode estar indisponível ou muito grande.');
+            }
+        }, timeout);
+
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, [loading, isPDF, retryCount]);
+
+    // Função para limpar timeout e marcar como carregado
+    const clearTimeoutAndSetLoaded = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        setLoading(false);
+    };
+
+    // Função para tentar novamente
+    const handleRetry = () => {
+        setLoading(true);
+        setError(null);
+        setRetryCount(prev => prev + 1);
+    };
 
     const handleDownload = async () => {
         try {
@@ -156,27 +198,47 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
 
                 {/* Área de conteúdo scrollável */}
                 <div className="flex-1 overflow-auto p-6 bg-slate-900/50">
-                    {/* Loading - apenas para PDFs (imagens controlam seu próprio loading) */}
-                    {loading && isPDF && (
+                    {/* Loading */}
+                    {loading && (
                         <div className="flex items-center justify-center h-full">
                             <div className="flex flex-col items-center gap-3">
                                 <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                                 <p className="text-slate-400">Carregando documento...</p>
+                                <p className="text-xs text-slate-500">
+                                    Aguarde até {isPDF ? '30' : '15'} segundos
+                                </p>
                             </div>
                         </div>
                     )}
 
-                    {/* Erro */}
-                    {error && (
+                    {/* Erro com opções de retry e download */}
+                    {error && !loading && (
                         <div className="flex items-center justify-center h-full">
-                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md">
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md text-center">
                                 <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                                <p className="text-red-400 text-center">{error}</p>
+                                <p className="text-red-400 mb-4">{error}</p>
+                                <div className="flex gap-3 justify-center flex-wrap">
+                                    <button
+                                        onClick={handleRetry}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400 border border-blue-500/30 transition-colors"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Tentar novamente
+                                    </button>
+                                    <button
+                                        onClick={handleDownload}
+                                        disabled={downloading}
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-emerald-400 border border-emerald-500/30 transition-colors disabled:opacity-50"
+                                    >
+                                        <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
+                                        Baixar arquivo
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Imagem - sempre renderiza para permitir onLoad/onError */}
+                    {/* Imagem */}
                     {isImage && !error && (
                         <div className="flex items-center justify-center min-h-full relative">
                             {/* Loading overlay para imagens */}
@@ -189,6 +251,7 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
                                 </div>
                             )}
                             <img
+                                key={retryCount}
                                 src={previewUrl}
                                 alt={documentName}
                                 style={{
@@ -197,28 +260,29 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
                                     opacity: loading ? 0 : 1,
                                 }}
                                 className="max-w-full max-h-full object-contain transition-all duration-200"
-                                onLoad={() => setLoading(false)}
+                                onLoad={clearTimeoutAndSetLoaded}
                                 onError={() => {
-                                    setLoading(false);
-                                    setError('Erro ao carregar imagem');
+                                    clearTimeoutAndSetLoaded();
+                                    setError('Erro ao carregar imagem. Verifique se o arquivo existe.');
                                 }}
                             />
                         </div>
                     )}
 
-                    {/* PDF */}
-                    {isPDF && !loading && !error && (
-                        <div className="flex justify-center">
+                    {/* PDF - Sempre renderiza para permitir callbacks */}
+                    {isPDF && !error && (
+                        <div className={`flex justify-center ${loading ? 'opacity-0 absolute' : ''}`}>
                             <Document
+                                key={retryCount}
                                 file={previewUrl}
                                 onLoadSuccess={({ numPages }) => {
                                     setTotalPages(numPages);
-                                    setLoading(false);
+                                    clearTimeoutAndSetLoaded();
                                 }}
                                 onLoadError={(err) => {
                                     console.error('Erro ao carregar PDF:', err);
-                                    setLoading(false);
-                                    setError('Erro ao carregar PDF');
+                                    clearTimeoutAndSetLoaded();
+                                    setError('Erro ao carregar PDF. Tente baixar o arquivo diretamente.');
                                 }}
                                 loading={<></>}
                                 className="pdf-document"
