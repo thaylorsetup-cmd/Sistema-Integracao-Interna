@@ -148,10 +148,36 @@ router.get(
         );
       }
 
-      // Contagem total
-      const countQuery = db
+      // Contagem total - aplicar mesmos filtros para paginação correta
+      let countQuery = db
         .selectFrom('submissions')
         .select(db.fn.count('id').as('count'));
+
+      // Aplicar mesmos filtros ao count
+      if (authReq.user?.role === 'operacional') {
+        countQuery = countQuery.where('operador_id', '=', authReq.user.id);
+      }
+      if (status) {
+        countQuery = countQuery.where('status', '=', status as SubmissionStatus);
+      }
+      if (prioridade) {
+        countQuery = countQuery.where('prioridade', '=', prioridade as SubmissionPriority);
+      }
+      if (operadorId) {
+        countQuery = countQuery.where('operador_id', '=', operadorId as string);
+      }
+      if (analistaId) {
+        countQuery = countQuery.where('analista_id', '=', analistaId as string);
+      }
+      if (search && typeof search === 'string') {
+        countQuery = countQuery.where((eb) =>
+          eb.or([
+            eb('nome_motorista', 'ilike', `%${search}%`),
+            eb('cpf', 'ilike', `%${search}%`),
+            eb('placa', 'ilike', `%${search}%`),
+          ])
+        );
+      }
 
       const [submissions, totalResult] = await Promise.all([
         query

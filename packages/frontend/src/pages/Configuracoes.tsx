@@ -763,7 +763,7 @@ function UsuariosSection() {
             {/* Modal de Edição */}
             {editingUser && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Editar Usuário</h3>
                             <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-white">
@@ -819,7 +819,7 @@ function UsuariosSection() {
             {/* Modal de Criação */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+                    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Novo Usuário</h3>
                             <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">

@@ -55,7 +55,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
       role="dialog"
       aria-modal="true"
       className={cn(
-        'relative w-full max-w-lg rounded-2xl border border-white/30 bg-white/95 backdrop-blur-xl p-6 shadow-2xl shadow-slate-900/20',
+        'relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/30 bg-white/95 backdrop-blur-xl p-6 shadow-2xl shadow-slate-900/20',
         className
       )}
       {...props}
