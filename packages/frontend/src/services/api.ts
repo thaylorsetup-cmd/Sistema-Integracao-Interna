@@ -266,6 +266,8 @@ export type DocumentType =
   | 'gr'
   | 'rcv'
   | 'contrato'
+  | 'flex'
+  | 'cte'
   | 'outros';
 
 export interface Document {

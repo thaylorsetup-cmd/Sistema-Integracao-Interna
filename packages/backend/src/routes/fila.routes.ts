@@ -17,6 +17,7 @@ const router: Router = Router();
 
 // Schema para criar submission
 const createSubmissionSchema = z.object({
+  // Dados básicos
   nomeMotorista: z.string().min(2, 'Nome deve ter no minimo 2 caracteres').optional(),
   cpf: z.string().min(11, 'CPF invalido').optional(),
   telefone: z.string().optional(),
@@ -29,6 +30,25 @@ const createSubmissionSchema = z.object({
   destino: z.string().optional(),
   localizacaoAtual: z.string().optional(),
   tipoMercadoria: z.string().optional(),
+
+  // Tipo de cadastro (migration 011)
+  tipoCadastro: z.enum(['novo_cadastro', 'atualizacao', 'agregado', 'bens_rodando']).default('novo_cadastro'),
+
+  // Campos adicionais para Cadastro Novo (migration 011)
+  telProprietario: z.string().optional(),
+  enderecoResidencial: z.string().optional(),
+  numeroPis: z.string().optional(),
+  valorMercadoria: z.number().optional(),
+  telMotorista: z.string().optional(),
+  referenciaComercial1: z.string().optional(),
+  referenciaComercial2: z.string().optional(),
+  referenciaPessoal1: z.string().optional(),
+  referenciaPessoal2: z.string().optional(),
+  referenciaPessoal3: z.string().optional(),
+
+  // Rastreamento
+  requerRastreamento: z.boolean().default(false),
+  coordenadasRastreamento: z.record(z.unknown()).optional(),
 });
 
 // Schema para atualizar submission
@@ -82,7 +102,13 @@ router.get(
           'submissions.data_conclusao',
           'submissions.observacoes',
           'submissions.motivo_rejeicao',
+          'submissions.categoria_rejeicao',
+          'submissions.tipo_cadastro',
+          'submissions.devolvido_em',
+          'submissions.devolvido_por',
+          'submissions.updated_at',
           'submissions.created_at',
+          'operador.id as operador_id',
           'operador.nome as operador_nome',
           'operador.email as operador_email',
           'analista.nome as analista_nome',
@@ -348,6 +374,20 @@ router.post('/', requireAuth, requirePermission('criarCadastros'), async (req, r
         operador_id: authReq.user!.id,
         status: 'pendente',
         data_envio: new Date(),
+        // Novos campos - migration 011
+        tipo_cadastro: data.tipoCadastro,
+        tel_proprietario: data.telProprietario,
+        endereco_residencial: data.enderecoResidencial,
+        numero_pis: data.numeroPis,
+        valor_mercadoria: data.valorMercadoria,
+        tel_motorista: data.telMotorista,
+        referencia_comercial_1: data.referenciaComercial1,
+        referencia_comercial_2: data.referenciaComercial2,
+        referencia_pessoal_1: data.referenciaPessoal1,
+        referencia_pessoal_2: data.referenciaPessoal2,
+        referencia_pessoal_3: data.referenciaPessoal3,
+        requer_rastreamento: data.requerRastreamento,
+        coordenadas_rastreamento: data.coordenadasRastreamento ? JSON.stringify(data.coordenadasRastreamento) : null,
       })
       .returning([
         'id',
@@ -356,6 +396,7 @@ router.post('/', requireAuth, requirePermission('criarCadastros'), async (req, r
         'status',
         'prioridade',
         'data_envio',
+        'tipo_cadastro',
       ])
       .executeTakeFirst();
 
@@ -820,10 +861,12 @@ router.post('/:id/devolver', requireAuth, requirePermission('aprovarCadastros'),
         status: 'devolvido',
         analista_id: authReq.user!.id,
         motivo_rejeicao: motivoDevolucao,
+        devolvido_em: new Date(),
+        devolvido_por: authReq.user!.id,
         ...(categoria && { categoria_rejeicao: categoria }),
       })
       .where('id', '=', id)
-      .returning(['id', 'status', 'motivo_rejeicao', 'categoria_rejeicao'])
+      .returning(['id', 'status', 'motivo_rejeicao', 'categoria_rejeicao', 'devolvido_em', 'devolvido_por'])
       .executeTakeFirst();
 
     logger.info(`Submission devolvida: ${id} por ${authReq.user?.email}`);
@@ -831,11 +874,35 @@ router.post('/:id/devolver', requireAuth, requirePermission('aprovarCadastros'),
     // Emitir evento Socket.IO para notificar operador
     try {
       const io = getIO();
-      io.to(`user:${existing.operador_id}`).emit('submission:devolvida', {
+      const eventData = {
         id,
         motivoDevolucao,
         categoria,
         analista: authReq.user?.nome,
+        devolvido_em: updated?.devolvido_em,
+        submission: updated,
+      };
+
+      // Emitir para sala pessoal do operador
+      io.to(`user:${existing.operador_id}`).emit('submission:devolvida', eventData);
+
+      // Emitir para sala fila (para dashboards)
+      io.to('fila').emit('submission:devolvida', eventData);
+
+      // Emitir update para dashboard de gestao
+      io.to('dashboard').emit('submission:updated', {
+        id,
+        status: 'devolvido',
+        previousStatus: existing.status,
+        analistaNome: authReq.user?.nome,
+      });
+
+      // Emitir notificacao visual para o operador
+      io.to(`user:${existing.operador_id}`).emit('notification', {
+        type: 'warning',
+        title: 'Cadastro Devolvido',
+        message: `Seu cadastro foi devolvido: ${motivoDevolucao}`,
+        submissionId: id,
       });
     } catch (error) {
       logger.warn('Socket.IO não disponível para emitir evento de devolução:', error);
@@ -904,6 +971,8 @@ router.post('/:id/reenviar', requireAuth, requireAnyPermission('criarCadastros',
         analista_id: null,
         data_inicio_analise: null,
         data_conclusao: null,
+        devolvido_em: null,
+        devolvido_por: null,
         data_envio: new Date(),
         ...(observacoes && { observacoes }),
       })
@@ -912,6 +981,40 @@ router.post('/:id/reenviar', requireAuth, requireAnyPermission('criarCadastros',
       .executeTakeFirst();
 
     logger.info(`Submission reenviada: ${id} por ${authReq.user?.email}`);
+
+    // Emitir evento Socket.IO para notificar cadastrantes
+    try {
+      const io = getIO();
+      const eventData = {
+        id,
+        status: 'pendente',
+        previousStatus: 'devolvido',
+        operadorNome: authReq.user?.nome,
+        data_envio: updated?.data_envio,
+      };
+
+      // Emitir para sala fila (para cadastrantes)
+      io.to('fila').emit('submission:reenviada', eventData);
+
+      // Emitir para sala dashboard
+      io.to('dashboard').emit('submission:reenviada', eventData);
+      io.to('dashboard').emit('submission:updated', {
+        id,
+        status: 'pendente',
+        previousStatus: 'devolvido',
+        operadorNome: authReq.user?.nome,
+      });
+
+      // Notificacao visual para sala cadastro
+      io.to('fila').emit('notification', {
+        type: 'info',
+        title: 'Cadastro Reenviado',
+        message: `O operador ${authReq.user?.nome} reenviou um cadastro para análise`,
+        submissionId: id,
+      });
+    } catch (error) {
+      logger.warn('Socket.IO não disponível para emitir evento de reenvio:', error);
+    }
 
     res.json({
       success: true,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout';
 import {
@@ -22,10 +22,14 @@ import {
   Image,
   Tag,
   Edit3,
-  Loader2
+  Loader2,
+  RotateCcw,
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { filaApi, documentsApi, type DocumentType as ApiDocType } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
+import { useSocket, onSubmissionDevolvida, type SubmissionDevolvidaEvent } from '@/hooks/useSocket';
 
 // Tipos de documentos
 interface DocumentType {
@@ -88,6 +92,41 @@ export function DashboardOperador() {
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Estado para devolvidos
+  const [devolvidosCount, setDevolvidosCount] = useState(0);
+  const [newDevolvido, setNewDevolvido] = useState(false);
+
+  // Conectar ao socket
+  useSocket();
+
+  // Carregar contagem de devolvidos
+  useEffect(() => {
+    const loadDevolvidosCount = async () => {
+      try {
+        const response = await filaApi.list({ status: 'devolvido' });
+        if (response.success && response.data) {
+          setDevolvidosCount(response.data.length);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar devolvidos:', error);
+      }
+    };
+
+    loadDevolvidosCount();
+  }, []);
+
+  // Listener para novas devoluções via WebSocket
+  useEffect(() => {
+    const unsub = onSubmissionDevolvida((event: SubmissionDevolvidaEvent) => {
+      console.log('[DashboardOperador] Nova devolução:', event);
+      setDevolvidosCount(prev => prev + 1);
+      setNewDevolvido(true);
+      setTimeout(() => setNewDevolvido(false), 5000);
+    });
+
+    return () => unsub();
+  }, []);
 
 
 
@@ -326,16 +365,59 @@ export function DashboardOperador() {
   return (
     <Container>
       <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg mb-3">
-            <FileUp className="w-7 h-7 text-white" />
+        {/* Alerta de Devolvidos */}
+        {devolvidosCount > 0 && (
+          <div
+            onClick={() => navigate('/dashboard/devolvidos')}
+            className={`bg-orange-500/10 border-2 ${newDevolvido ? 'border-orange-500 animate-pulse' : 'border-orange-500/30'} rounded-xl p-4 cursor-pointer hover:bg-orange-500/20 transition-all`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${newDevolvido ? 'bg-orange-500' : 'bg-orange-500/20'}`}>
+                  <RotateCcw className={`w-5 h-5 ${newDevolvido ? 'text-white' : 'text-orange-400'}`} />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold flex items-center gap-2">
+                    Você tem cadastros devolvidos
+                    {newDevolvido && (
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-bounce">
+                        NOVO!
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-orange-400/80 text-sm">
+                    {devolvidosCount} cadastro{devolvidosCount > 1 ? 's' : ''} aguardando correção
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-orange-400">
+                <span className="text-sm font-medium">Ver devolvidos</span>
+                <ChevronRight className="w-5 h-5" />
+              </div>
+            </div>
           </div>
-          <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
-          <p className="text-slate-500 text-sm flex items-center justify-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            Arraste e classifique os documentos
-          </p>
+        )}
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="text-left">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg mb-3">
+              <FileUp className="w-7 h-7 text-white" />
+            </div>
+            <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
+            <p className="text-slate-500 text-sm flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              Arraste e classifique os documentos
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/cadastro/novo')}
+            className="flex items-center gap-2 px-4 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Cadastro Avançado
+          </button>
         </div>
 
         {/* Barra de Progresso */}

@@ -1,0 +1,1 @@
+export { NovoCadastro } from './NovoCadastro';

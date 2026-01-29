@@ -1,0 +1,140 @@
+# =====================================================
+# BBT CONNECT - Docker Compose para Producao (Swarm)
+# Deploy: docker stack deploy -c docker-compose.prod.yml bbt_connect
+# =====================================================
+
+version: "3.8"
+
+services:
+  # =====================================================
+  # POSTGRESQL
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bbt_connect}
+      POSTGRES_USER: ${POSTGRES_USER:-bbt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bbt_network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbt_user} -d ${POSTGRES_DB:-bbt_connect}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # REDIS
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bbt_network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # BACKEND API
+  # =====================================================
+  backend:
+    image: bbtconnect-backend:latest
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bbt_user}:${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}@postgres:5432/${POSTGRES_DB:-bbt_connect}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-sua-chave-jwt-super-secreta-aqui}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      SESSION_SECRET: ${SESSION_SECRET:-session-secret-key}
+    volumes:
+      - backend_uploads:/app/packages/backend/uploads
+      - backend_logs:/app/packages/backend/logs
+    networks:
+      - bbt_network
+    ports:
+      - "3001:3001"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # =====================================================
+  # FRONTEND (NGINX)
+  # =====================================================
+  frontend:
+    image: bbtconnect-frontend:latest
+    networks:
+      - bbt_network
+    ports:
+      - "80:80"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  bbt_network:
+    driver: overlay
+    attachable: true

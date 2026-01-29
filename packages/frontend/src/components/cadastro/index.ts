@@ -1,0 +1,1 @@
+export { TipoCadastroSelector } from './TipoCadastroSelector';

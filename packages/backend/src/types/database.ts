@@ -134,6 +134,10 @@ export interface SubmissionsTable {
   referencia_pessoal_2: string | null;
   referencia_pessoal_3: string | null;
 
+  // Campos de devolucao (migration 012)
+  devolvido_em: Date | null;
+  devolvido_por: string | null;
+
   // Metadados
   created_at: Generated<Date>;
   updated_at: Generated<Date>;

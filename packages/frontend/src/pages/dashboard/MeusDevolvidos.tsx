@@ -19,7 +19,9 @@ import {
     RefreshCw
 } from 'lucide-react';
 import { filaApi, type Submission } from '@/services/api';
-import { useFilaSocket, type SubmissionUpdatedEvent } from '@/hooks/useSocket';
+import { useFilaSocket, type SubmissionUpdatedEvent, onSubmissionDevolvida, type SubmissionDevolvidaEvent } from '@/hooks/useSocket';
+import { useSocket } from '@/hooks/useSocket';
+import { useAuth } from '@/contexts/useAuth';
 
 interface DevolvidoItem {
     id: string;
@@ -63,6 +65,7 @@ function formatCategoria(categoria: string | undefined): string {
 }
 
 export function MeusDevolvidos() {
+    const { user } = useAuth();
     const [devolvidos, setDevolvidos] = useState<DevolvidoItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +73,10 @@ export function MeusDevolvidos() {
     const [selectedItem, setSelectedItem] = useState<DevolvidoItem | null>(null);
     const [isReenviando, setIsReenviando] = useState(false);
     const [reenviandoId, setReenviandoId] = useState<string | null>(null);
+    const [newDevolvido, setNewDevolvido] = useState(false);
+
+    // Conectar ao socket e entrar na sala do usuario
+    useSocket();
 
     const loadDevolvidos = useCallback(async (showRefreshing = false) => {
         try {
@@ -95,6 +102,20 @@ export function MeusDevolvidos() {
 
     useEffect(() => {
         loadDevolvidos();
+    }, [loadDevolvidos]);
+
+    // Listener especifico para novas devolucoes
+    useEffect(() => {
+        const unsub = onSubmissionDevolvida((event: SubmissionDevolvidaEvent) => {
+            console.log('[MeusDevolvidos] Nova devolucao recebida:', event);
+            // Recarregar lista quando receber devolucao
+            loadDevolvidos();
+            setNewDevolvido(true);
+            // Limpar indicador apos 3 segundos
+            setTimeout(() => setNewDevolvido(false), 3000);
+        });
+
+        return () => unsub();
     }, [loadDevolvidos]);
 
     // WebSocket para atualizações
@@ -183,7 +204,14 @@ export function MeusDevolvidos() {
                             <RotateCcw className="w-6 h-6 text-orange-400" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">Cadastros Devolvidos</h1>
+                            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                                Cadastros Devolvidos
+                                {newDevolvido && (
+                                    <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                                        NOVO
+                                    </span>
+                                )}
+                            </h1>
                             <p className="text-slate-400 text-sm">
                                 Cadastros que precisam de correção
                             </p>

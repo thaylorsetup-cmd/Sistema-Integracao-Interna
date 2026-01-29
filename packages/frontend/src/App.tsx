@@ -15,6 +15,7 @@ const DashboardCadastroGR = lazy(() => import('@/pages/dashboard').then(module =
 const TvDisplay = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.TvDisplay })));
 const KpiDetalhes = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.KpiDetalhes })));
 const MeusDevolvidos = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.MeusDevolvidos })));
+const NovoCadastro = lazy(() => import('@/pages/cadastro').then(module => ({ default: module.NovoCadastro })));
 
 const TvMapa = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvMapa })));
 const TvKpis = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvKpis })));
@@ -103,6 +104,18 @@ function App() {
                       <MainLayout>
                         <Suspense fallback={<Loading />}>
                           <MeusDevolvidos />
+                        </Suspense>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cadastro/novo"
+                  element={
+                    <ProtectedRoute permission="criarCadastros">
+                      <MainLayout>
+                        <Suspense fallback={<Loading />}>
+                          <NovoCadastro />
                         </Suspense>
                       </MainLayout>
                     </ProtectedRoute>
