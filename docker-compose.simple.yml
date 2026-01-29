@@ -1,0 +1,113 @@
+# =====================================================
+# BBT CONNECT - Docker Compose Simplificado para Producao
+# Deploy: docker compose -f docker-compose.simple.yml up -d
+# =====================================================
+
+services:
+  # =====================================================
+  # POSTGRESQL
+  # =====================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: bbt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bbt_connect
+      POSTGRES_USER: bbt_user
+      POSTGRES_PASSWORD: Allg4m3Str8p00L6kdji2ceDB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bbt_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbt_user -d bbt_connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # REDIS
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: bbt_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bbt_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================================
+  # BACKEND API
+  # =====================================================
+  backend:
+    image: bbtconnect-backend:latest
+    container_name: bbt_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://bbt_user:Allg4m3Str8p00L6kdji2ceDB@postgres:5432/bbt_connect
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: bbt-connect-jwt-secret-2025-production
+      CORS_ORIGIN: "*"
+      SESSION_SECRET: bbt-connect-session-secret-2025-production
+      UPLOAD_DIR: /app/packages/backend/uploads
+    volumes:
+      - backend_uploads:/app/packages/backend/uploads
+      - backend_logs:/app/packages/backend/logs
+    networks:
+      - bbt_network
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # =====================================================
+  # FRONTEND (NGINX)
+  # =====================================================
+  frontend:
+    image: bbtconnect-frontend:latest
+    container_name: bbt_frontend
+    restart: unless-stopped
+    networks:
+      - bbt_network
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  bbt_network:
+    driver: bridge
