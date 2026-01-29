@@ -1,6 +1,7 @@
 /**
- * Componente Minhas Viagens - Auditoria do Operador
+ * Componente Minhas Corridas - Auditoria Pessoal do Operador
  * O operador pode ver todos os cadastros enviados, status e historico
+ * Cadastros devolvidos aparecem aqui para correcao
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Container } from '@/components/layout';
@@ -255,10 +256,10 @@ export function MeusDevolvidos() {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-white">
-                                Minhas Viagens
+                                Minhas Corridas
                             </h1>
                             <p className="text-slate-400 text-sm">
-                                Acompanhe todos os seus cadastros enviados
+                                Auditoria pessoal - Acompanhe todos os seus cadastros
                             </p>
                         </div>
                     </div>

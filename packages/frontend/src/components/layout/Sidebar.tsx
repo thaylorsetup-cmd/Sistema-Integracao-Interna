@@ -36,9 +36,9 @@ const navItems: NavItem[] = [
     permission: 'viewDashboardOperador',
   },
   {
-    to: '/dashboard/minhas-viagens',
+    to: '/dashboard/minhas-corridas',
     icon: RotateCcw,
-    label: 'Minhas Viagens',
+    label: 'Minhas Corridas',
     permission: 'viewDashboardOperador',
   },
   {

@@ -126,15 +126,6 @@ export function DashboardOperador() {
     return () => unsub();
   }, []);
 
-
-
-  // Campos de informação adicional
-  const [origem, setOrigem] = useState('');
-  const [destino, setDestino] = useState('');
-  const [localizacaoAtual, setLocalizacaoAtual] = useState('');
-  const [tipoMercadoria, setTipoMercadoria] = useState('');
-  const [tipoMercadoriaOutro, setTipoMercadoriaOutro] = useState('');
-
   // Arquivos não classificados
   const unclassifiedFiles = files.filter(f => f.type === null);
   // Arquivos classificados por tipo
@@ -240,14 +231,8 @@ export function DashboardOperador() {
     setUploadStatus('Criando cadastro...');
 
     try {
-      // 1. Criar o cadastro na fila
-      const createResponse = await filaApi.create({
-
-        origem: origem || undefined,
-        destino: destino || undefined,
-        localizacaoAtual: localizacaoAtual || undefined,
-        tipoMercadoria: tipoMercadoria === 'outros' ? tipoMercadoriaOutro : tipoMercadoria || undefined,
-      });
+      // 1. Criar o cadastro na fila (apenas documentos, sem campos adicionais)
+      const createResponse = await filaApi.create({});
 
       if (!createResponse.success || !createResponse.data) {
         throw new Error(createResponse.error || 'Erro ao criar cadastro');
@@ -366,7 +351,7 @@ export function DashboardOperador() {
         {/* Alerta de Devolvidos */}
         {devolvidosCount > 0 && (
           <div
-            onClick={() => navigate('/dashboard/devolvidos')}
+            onClick={() => navigate('/dashboard/minhas-corridas')}
             className={`bg-orange-500/10 border-2 ${newDevolvido ? 'border-orange-500 animate-pulse' : 'border-orange-500/30'} rounded-xl p-4 cursor-pointer hover:bg-orange-500/20 transition-all`}
           >
             <div className="flex items-center justify-between">
@@ -425,77 +410,6 @@ export function DashboardOperador() {
                 }`}
               style={{ width: `${(completedDocs.length / requiredDocs.length) * 100}%` }}
             />
-          </div>
-        </div>
-
-
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
-              Origem
-            </label>
-            <input
-              type="text"
-              value={origem}
-              onChange={(e) => setOrigem(e.target.value)}
-              placeholder="Cidade/Estado de origem"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
-              Destino
-            </label>
-            <input
-              type="text"
-              value={destino}
-              onChange={(e) => setDestino(e.target.value)}
-              placeholder="Cidade/Estado de destino"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
-              Localização Atual
-            </label>
-            <input
-              type="text"
-              value={localizacaoAtual}
-              onChange={(e) => setLocalizacaoAtual(e.target.value)}
-              placeholder="Localização atual do motorista"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
-              Tipo de Mercadoria
-            </label>
-            <select
-              value={tipoMercadoria}
-              onChange={(e) => setTipoMercadoria(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:border-benfica-blue focus:outline-none transition-colors"
-            >
-              <option value="" className="bg-slate-900">Selecione...</option>
-              <option value="carga-seca" className="bg-slate-900">Carga Seca</option>
-              <option value="refrigerada" className="bg-slate-900">Refrigerada</option>
-              <option value="perigosa" className="bg-slate-900">Perigosa</option>
-              <option value="fragil" className="bg-slate-900">Frágil</option>
-              <option value="outros" className="bg-slate-900">Outros</option>
-            </select>
-
-            {tipoMercadoria === 'outros' && (
-              <input
-                type="text"
-                value={tipoMercadoriaOutro}
-                onChange={(e) => setTipoMercadoriaOutro(e.target.value)}
-                placeholder="Especifique o tipo de mercadoria"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors mt-2"
-              />
-            )}
           </div>
         </div>
 

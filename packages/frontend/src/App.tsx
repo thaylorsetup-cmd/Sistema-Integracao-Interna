@@ -97,7 +97,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/dashboard/minhas-viagens"
+                  path="/dashboard/minhas-corridas"
                   element={
                     <ProtectedRoute permission="viewDashboardOperador">
                       <MainLayout>
@@ -109,7 +109,8 @@ function App() {
                   }
                 />
                 {/* Redirects para rotas antigas */}
-                <Route path="/dashboard/devolvidos" element={<Navigate to="/dashboard/minhas-viagens" replace />} />
+                <Route path="/dashboard/devolvidos" element={<Navigate to="/dashboard/minhas-corridas" replace />} />
+                <Route path="/dashboard/minhas-viagens" element={<Navigate to="/dashboard/minhas-corridas" replace />} />
                 <Route path="/cadastro/novo" element={<Navigate to="/dashboard/operador" replace />} />
                 <Route
                   path="/dashboard/kpi/:tipo"
