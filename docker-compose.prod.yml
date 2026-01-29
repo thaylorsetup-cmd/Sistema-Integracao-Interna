@@ -68,8 +68,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-bbt_user}:${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}@postgres:5432/${POSTGRES_DB:-bbt_connect}
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bbt_user}:${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}@bbt_connect_postgres:5432/${POSTGRES_DB:-bbt_connect}
+      REDIS_URL: redis://bbt_connect_redis:6379
       JWT_SECRET: ${JWT_SECRET:-sua-chave-jwt-super-secreta-aqui}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       SESSION_SECRET: ${SESSION_SECRET:-session-secret-key}
