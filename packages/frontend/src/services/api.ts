@@ -163,7 +163,6 @@ export interface CreateSubmissionData {
   destino?: string;
   localizacaoAtual?: string;
   tipoMercadoria?: string;
-  requer_rastreamento?: boolean;
 }
 
 export const filaApi = {

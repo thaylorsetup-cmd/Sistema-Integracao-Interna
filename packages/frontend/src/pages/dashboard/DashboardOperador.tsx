@@ -92,11 +92,6 @@ export function DashboardOperador() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Campos do formulário
-  const [origem, setOrigem] = useState('');
-  const [destino, setDestino] = useState('');
-  const [temChecklist, setTemChecklist] = useState(false);
-
   // Estado para devolvidos
   const [devolvidosCount, setDevolvidosCount] = useState(0);
   const [newDevolvido, setNewDevolvido] = useState(false);
@@ -237,12 +232,8 @@ export function DashboardOperador() {
     setUploadStatus('Criando cadastro...');
 
     try {
-      // 1. Criar o cadastro na fila com os dados do formulário
-      const createResponse = await filaApi.create({
-        origem,
-        destino,
-        requer_rastreamento: temChecklist,
-      });
+      // 1. Criar o cadastro na fila (apenas documentos, sem campos adicionais)
+      const createResponse = await filaApi.create({});
 
       if (!createResponse.success || !createResponse.data) {
         throw new Error(createResponse.error || 'Erro ao criar cadastro');
@@ -399,53 +390,8 @@ export function DashboardOperador() {
           <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
           <p className="text-slate-500 text-sm flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
-            Preencha os dados e envie os documentos
+            Arraste e classifique os documentos
           </p>
-        </div>
-
-        {/* Campos do Formulário */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10 space-y-4">
-          <h3 className="text-sm font-bold text-white mb-3">Informações da Carga</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Origem */}
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Origem *</label>
-              <input
-                type="text"
-                value={origem}
-                onChange={(e) => setOrigem(e.target.value)}
-                placeholder="Ex: São Paulo - SP"
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-              />
-            </div>
-
-            {/* Destino */}
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Destino *</label>
-              <input
-                type="text"
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                placeholder="Ex: Rio de Janeiro - RJ"
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Checkbox Checklist */}
-          <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <input
-              type="checkbox"
-              checked={temChecklist}
-              onChange={(e) => setTemChecklist(e.target.checked)}
-              className="w-5 h-5 rounded border-2 border-white/30 bg-transparent checked:bg-benfica-blue checked:border-benfica-blue focus:ring-0 focus:ring-offset-0 cursor-pointer"
-            />
-            <div>
-              <span className="text-white font-medium">Requer Checklist / Rastreamento</span>
-              <p className="text-xs text-slate-500">Marque se a carga precisa de acompanhamento especial</p>
-            </div>
-          </label>
         </div>
 
         {/* Barra de Progresso */}
