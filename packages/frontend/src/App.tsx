@@ -15,7 +15,6 @@ const DashboardCadastroGR = lazy(() => import('@/pages/dashboard').then(module =
 const TvDisplay = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.TvDisplay })));
 const KpiDetalhes = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.KpiDetalhes })));
 const MeusDevolvidos = lazy(() => import('@/pages/dashboard').then(module => ({ default: module.MeusDevolvidos })));
-const NovoCadastro = lazy(() => import('@/pages/cadastro').then(module => ({ default: module.NovoCadastro })));
 
 const TvMapa = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvMapa })));
 const TvKpis = lazy(() => import('@/pages/tv').then(module => ({ default: module.TvKpis })));
@@ -109,20 +108,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                {/* Redirect antiga rota para nova */}
+                {/* Redirects para rotas antigas */}
                 <Route path="/dashboard/devolvidos" element={<Navigate to="/dashboard/minhas-viagens" replace />} />
-                <Route
-                  path="/cadastro/novo"
-                  element={
-                    <ProtectedRoute permission="criarCadastros">
-                      <MainLayout>
-                        <Suspense fallback={<Loading />}>
-                          <NovoCadastro />
-                        </Suspense>
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/cadastro/novo" element={<Navigate to="/dashboard/operador" replace />} />
                 <Route
                   path="/dashboard/kpi/:tipo"
                   element={

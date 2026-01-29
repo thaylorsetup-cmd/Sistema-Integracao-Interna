@@ -5,7 +5,6 @@ import {
   FileUp,
   Send,
   CheckCircle,
-  Clock,
   FileText,
   X,
   Upload,
@@ -25,7 +24,6 @@ import {
   Loader2,
   RotateCcw,
   ChevronRight,
-  Plus
 } from 'lucide-react';
 import { filaApi, documentsApi, type DocumentType as ApiDocType } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -399,25 +397,15 @@ export function DashboardOperador() {
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="text-left">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg mb-3">
-              <FileUp className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
-            <p className="text-slate-500 text-sm flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Arraste e classifique os documentos
-            </p>
+        <div className="text-left">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-2xl shadow-lg mb-3">
+            <FileUp className="w-7 h-7 text-white" />
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/cadastro/novo')}
-            className="flex items-center gap-2 px-4 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Cadastro Avançado
-          </button>
+          <h1 className="text-2xl font-black text-white">Envio de Documentos</h1>
+          <p className="text-slate-500 text-sm flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Arraste e classifique os documentos
+          </p>
         </div>
 
         {/* Barra de Progresso */}
