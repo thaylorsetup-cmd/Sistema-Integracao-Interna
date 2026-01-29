@@ -19,9 +19,6 @@ import {
     ExternalLink,
     FileCheck,
     Loader2,
-    RefreshCw,
-    Wifi,
-    WifiOff,
     AlertCircle,
     RotateCcw
 } from 'lucide-react';
@@ -263,7 +260,6 @@ function DetailModal({
     onDevolver: () => void;
     onStartAnalysis: () => void;
 }) {
-    const [downloadingAll, setDownloadingAll] = useState(false);
     const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
     const [delays, setDelays] = useState<Delay[]>([]);
     const [loadingDelays, setLoadingDelays] = useState(false);
@@ -309,21 +305,6 @@ function DetailModal({
             alert('Erro ao baixar arquivo');
         } finally {
             setDownloadingFile(null);
-        }
-    };
-
-    const handleDownloadAll = async () => {
-        setDownloadingAll(true);
-        try {
-            for (const doc of submission.documentos) {
-                await handleDownloadFile(doc);
-                // Pequeno delay entre downloads
-                await new Promise(r => setTimeout(r, 300));
-            }
-        } catch (error) {
-            alert('Erro ao baixar alguns arquivos');
-        } finally {
-            setDownloadingAll(false);
         }
     };
 
@@ -397,16 +378,6 @@ function DetailModal({
                             </div>
                         )}
                     </div>
-
-                    {/* Botão Download Todos */}
-                    <button
-                        onClick={handleDownloadAll}
-                        disabled={downloadingAll}
-                        className="w-full py-3 bg-benfica-blue/20 hover:bg-benfica-blue/30 text-benfica-blue font-bold rounded-xl border border-benfica-blue/30 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                    >
-                        <Download className={`w-5 h-5 ${downloadingAll ? 'animate-bounce' : ''}`} />
-                        {downloadingAll ? 'Baixando...' : `Baixar Todos os Documentos (${submission.documentos.length})`}
-                    </button>
 
                     {/* Documentos Agrupados por Tipo */}
                     <div className="space-y-4">
@@ -722,7 +693,6 @@ export function DashboardCadastroGR() {
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Estados dos modais
     const [showRejectModal, setShowRejectModal] = useState(false);
@@ -740,10 +710,9 @@ export function DashboardCadastroGR() {
     const [devolverCategory, setDevolverCategory] = useState('');
 
     // Carregar dados da API
-    const loadSubmissions = useCallback(async (showRefreshing = false) => {
+    const loadSubmissions = useCallback(async () => {
         try {
-            if (showRefreshing) setIsRefreshing(true);
-            else setIsLoading(true);
+            setIsLoading(true);
 
             const response = await filaApi.list();
 
@@ -758,7 +727,6 @@ export function DashboardCadastroGR() {
             setError('Erro de conexão com o servidor');
         } finally {
             setIsLoading(false);
-            setIsRefreshing(false);
         }
     }, []);
 
@@ -1003,14 +971,6 @@ export function DashboardCadastroGR() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => loadSubmissions(true)}
-                            disabled={isRefreshing}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors disabled:opacity-50"
-                            title="Atualizar"
-                        >
-                            <RefreshCw className={`w-4 h-4 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        </button>
                         {pendentes.filter(p => p.prioridade === 'urgente').length > 0 && (
                             <div className="flex items-center gap-2 bg-red-500/20 text-red-400 px-3 py-2 rounded-lg border border-red-500/30 animate-pulse">
                                 <AlertTriangle className="w-4 h-4" />

@@ -18,7 +18,6 @@ import {
     X,
     Loader2,
     CheckCircle,
-    RefreshCw,
     Truck,
     MapPin,
     Filter,
@@ -122,7 +121,6 @@ export function MeusDevolvidos() {
     const [viagens, setViagens] = useState<ViagemItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [isReenviando, setIsReenviando] = useState(false);
     const [reenviandoId, setReenviandoId] = useState<string | null>(null);
@@ -141,10 +139,9 @@ export function MeusDevolvidos() {
     // Conectar ao socket
     useSocket();
 
-    const loadViagens = useCallback(async (showRefreshing = false) => {
+    const loadViagens = useCallback(async () => {
         try {
-            if (showRefreshing) setIsRefreshing(true);
-            else setIsLoading(true);
+            setIsLoading(true);
 
             // Buscar todos os cadastros do operador
             const response = await filaApi.list({});
@@ -166,7 +163,6 @@ export function MeusDevolvidos() {
             setError('Erro de conexao com o servidor');
         } finally {
             setIsLoading(false);
-            setIsRefreshing(false);
         }
     }, []);
 
@@ -377,15 +373,6 @@ export function MeusDevolvidos() {
                             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-red-400'}`} />
                             {isConnected ? 'Tempo Real' : 'Reconectando...'}
                         </div>
-
-                        <button
-                            onClick={() => loadViagens(true)}
-                            disabled={isRefreshing}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                            title="Atualizar lista"
-                        >
-                            <RefreshCw className={`w-5 h-5 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        </button>
                     </div>
                 </div>
 

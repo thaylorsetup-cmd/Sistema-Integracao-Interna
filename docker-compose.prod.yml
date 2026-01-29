@@ -69,6 +69,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-sua-chave-jwt-super-secreta-aqui}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       SESSION_SECRET: ${SESSION_SECRET:-session-secret-key}
+      UPLOAD_DIR: /app/packages/backend/uploads
     volumes:
       - backend_uploads:/app/packages/backend/uploads
       - backend_logs:/app/packages/backend/logs
