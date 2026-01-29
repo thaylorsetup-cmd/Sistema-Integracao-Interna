@@ -1,15 +1,14 @@
 # =====================================================
-# BBT CONNECT - Docker Compose para Producao (Swarm)
-# Deploy: docker stack deploy -c docker-compose.prod.yml bbt_connect
+# BBT CONNECT - Stack para Portainer (Swarm)
 # =====================================================
 
 version: "3.8"
 
 services:
   # =====================================================
-  # POSTGRESQL
+  # POSTGRESQL (bbt_db)
   # =====================================================
-  postgres:
+  bbt_db:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bbt_connect}
@@ -20,16 +19,14 @@ services:
     networks:
       network_public:
         aliases:
-          - postgres
+          - bbt_db
     deploy:
+      mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      placement:
-        constraints:
-          - node.role == manager
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbt_user} -d ${POSTGRES_DB:-bbt_connect}" ]
       interval: 10s
@@ -37,9 +34,9 @@ services:
       retries: 5
 
   # =====================================================
-  # REDIS
+  # REDIS (bbt_redis)
   # =====================================================
-  redis:
+  bbt_redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
     volumes:
@@ -47,8 +44,9 @@ services:
     networks:
       network_public:
         aliases:
-          - redis
+          - bbt_redis
     deploy:
+      mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
@@ -61,15 +59,16 @@ services:
       retries: 5
 
   # =====================================================
-  # BACKEND API
+  # BACKEND (bbt_backend)
   # =====================================================
-  backend:
+  bbt_backend:
     image: bbtconnect-backend:latest
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-bbt_user}:${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}@bbt_connect_postgres:5432/${POSTGRES_DB:-bbt_connect}
-      REDIS_URL: redis://bbt_connect_redis:6379
+      # Conecta no bbt_db e bbt_redis
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bbt_user}:${POSTGRES_PASSWORD:-Allg4m3Str8p00L6kdji2ceDB}@bbt_db:5432/${POSTGRES_DB:-bbt_connect}
+      REDIS_URL: redis://bbt_redis:6379
       JWT_SECRET: ${JWT_SECRET:-sua-chave-jwt-super-secreta-aqui}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       SESSION_SECRET: ${SESSION_SECRET:-session-secret-key}
@@ -80,10 +79,11 @@ services:
     networks:
       network_public:
         aliases:
-          - backend
+          - bbt_backend
     ports:
       - "3001:3001"
     deploy:
+      mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
@@ -101,15 +101,16 @@ services:
       retries: 3
 
   # =====================================================
-  # FRONTEND (NGINX) - Via Traefik
+  # FRONTEND (bbt_frontend)
   # =====================================================
-  frontend:
+  bbt_frontend:
     image: bbtconnect-frontend:latest
     networks:
       network_public:
         aliases:
-          - frontend
+          - bbt_frontend
     deploy:
+      mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
