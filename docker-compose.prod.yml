@@ -103,7 +103,7 @@ services:
     image: bbtconnect-frontend:latest
     networks:
       - bbt_network
-      - traefik-public
+      - network_public
     deploy:
       replicas: 1
       restart_policy:
@@ -116,7 +116,7 @@ services:
         order: start-first
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
+        - "traefik.docker.network=network_public"
         - "traefik.http.routers.bbt-frontend.rule=Host(`control.bbttransportes.com.br`)"
         - "traefik.http.routers.bbt-frontend.entrypoints=websecure"
         - "traefik.http.routers.bbt-frontend.tls.certresolver=letsencrypt"
@@ -144,5 +144,5 @@ networks:
   bbt_network:
     driver: overlay
     attachable: true
-  traefik-public:
+  network_public:
     external: true
