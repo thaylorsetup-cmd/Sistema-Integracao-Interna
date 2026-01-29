@@ -156,8 +156,8 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
 
                 {/* Área de conteúdo scrollável */}
                 <div className="flex-1 overflow-auto p-6 bg-slate-900/50">
-                    {/* Loading */}
-                    {loading && (
+                    {/* Loading - apenas para PDFs (imagens controlam seu próprio loading) */}
+                    {loading && isPDF && (
                         <div className="flex items-center justify-center h-full">
                             <div className="flex flex-col items-center gap-3">
                                 <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
@@ -176,62 +176,67 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
                         </div>
                     )}
 
-                    {/* Conteúdo */}
-                    {!loading && !error && (
-                        <>
-                            {/* Imagem */}
-                            {isImage && (
-                                <div className="flex items-center justify-center min-h-full">
-                                    <img
-                                        src={previewUrl}
-                                        alt={documentName}
-                                        style={{
-                                            transform: `scale(${zoom})`,
-                                            transformOrigin: 'center',
-                                        }}
-                                        className="max-w-full max-h-full object-contain transition-transform duration-200"
-                                        onLoad={() => setLoading(false)}
-                                        onError={() => {
-                                            setLoading(false);
-                                            setError('Erro ao carregar imagem');
-                                        }}
-                                    />
+                    {/* Imagem - sempre renderiza para permitir onLoad/onError */}
+                    {isImage && !error && (
+                        <div className="flex items-center justify-center min-h-full relative">
+                            {/* Loading overlay para imagens */}
+                            {loading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                        <p className="text-slate-400">Carregando imagem...</p>
+                                    </div>
                                 </div>
                             )}
+                            <img
+                                src={previewUrl}
+                                alt={documentName}
+                                style={{
+                                    transform: `scale(${zoom})`,
+                                    transformOrigin: 'center',
+                                    opacity: loading ? 0 : 1,
+                                }}
+                                className="max-w-full max-h-full object-contain transition-all duration-200"
+                                onLoad={() => setLoading(false)}
+                                onError={() => {
+                                    setLoading(false);
+                                    setError('Erro ao carregar imagem');
+                                }}
+                            />
+                        </div>
+                    )}
 
-                            {/* PDF */}
-                            {isPDF && (
-                                <div className="flex justify-center">
-                                    <Document
-                                        file={previewUrl}
-                                        onLoadSuccess={({ numPages }) => {
-                                            setTotalPages(numPages);
-                                            setLoading(false);
-                                        }}
-                                        onLoadError={(error) => {
-                                            console.error('Erro ao carregar PDF:', error);
-                                            setLoading(false);
-                                            setError('Erro ao carregar PDF');
-                                        }}
-                                        loading={<></>}
-                                        className="pdf-document"
-                                    >
-                                        <Page
-                                            pageNumber={currentPage}
-                                            scale={zoom}
-                                            renderTextLayer={false}
-                                            renderAnnotationLayer={false}
-                                            className="shadow-2xl"
-                                            loading={
-                                                <div className="flex items-center justify-center p-8">
-                                                    <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                                                </div>
-                                            }
-                                        />
-                                    </Document>
-                                </div>
-                            )}
-                        </>
+                    {/* PDF */}
+                    {isPDF && !loading && !error && (
+                        <div className="flex justify-center">
+                            <Document
+                                file={previewUrl}
+                                onLoadSuccess={({ numPages }) => {
+                                    setTotalPages(numPages);
+                                    setLoading(false);
+                                }}
+                                onLoadError={(err) => {
+                                    console.error('Erro ao carregar PDF:', err);
+                                    setLoading(false);
+                                    setError('Erro ao carregar PDF');
+                                }}
+                                loading={<></>}
+                                className="pdf-document"
+                            >
+                                <Page
+                                    pageNumber={currentPage}
+                                    scale={zoom}
+                                    renderTextLayer={false}
+                                    renderAnnotationLayer={false}
+                                    className="shadow-2xl"
+                                    loading={
+                                        <div className="flex items-center justify-center p-8">
+                                            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                        </div>
+                                    }
+                                />
+                            </Document>
+                        </div>
                     )}
                 </div>
             </div>

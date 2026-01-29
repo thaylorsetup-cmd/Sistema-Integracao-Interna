@@ -98,7 +98,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/dashboard/devolvidos"
+                  path="/dashboard/minhas-viagens"
                   element={
                     <ProtectedRoute permission="viewDashboardOperador">
                       <MainLayout>
@@ -109,6 +109,8 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Redirect antiga rota para nova */}
+                <Route path="/dashboard/devolvidos" element={<Navigate to="/dashboard/minhas-viagens" replace />} />
                 <Route
                   path="/cadastro/novo"
                   element={

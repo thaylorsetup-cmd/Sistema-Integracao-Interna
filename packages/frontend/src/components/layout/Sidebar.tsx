@@ -36,9 +36,9 @@ const navItems: NavItem[] = [
     permission: 'viewDashboardOperador',
   },
   {
-    to: '/dashboard/devolvidos',
+    to: '/dashboard/minhas-viagens',
     icon: RotateCcw,
-    label: 'Meus Devolvidos',
+    label: 'Minhas Viagens',
     permission: 'viewDashboardOperador',
   },
   {
