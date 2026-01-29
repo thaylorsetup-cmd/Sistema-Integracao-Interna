@@ -1,7 +1,7 @@
 /**
  * PreviewModal - Modal para visualização de documentos
  * Suporta imagens e PDFs com controles de zoom e navegação
- * Inclui timeout, retry e fallback para download
+ * Usa Axios para buscar documento com autenticação via cookies
  */
 import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -33,9 +33,8 @@ interface PreviewModalProps {
     onClose: () => void;
 }
 
-// Timeouts em ms
-const TIMEOUT_PDF = 30000;  // 30 segundos para PDFs
-const TIMEOUT_IMAGE = 15000; // 15 segundos para imagens
+// Timeout em ms
+const FETCH_TIMEOUT = 30000; // 30 segundos
 
 export function PreviewModal({ documentId, documentName, mimeType, onClose }: PreviewModalProps) {
     const [loading, setLoading] = useState(true);
@@ -45,31 +44,83 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
     const [totalPages, setTotalPages] = useState(0);
     const [downloading, setDownloading] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const isPDF = mimeType === 'application/pdf';
     const isImage = mimeType.startsWith('image/');
 
-    // URL com parametro para forçar reload em retry
-    const previewUrl = `/api/documents/${documentId}/preview?t=${retryCount}`;
-
-    // Timeout para evitar loading infinito
+    // Buscar documento via Axios (com cookies de autenticação)
     useEffect(() => {
-        const timeout = isPDF ? TIMEOUT_PDF : TIMEOUT_IMAGE;
+        let isMounted = true;
+        let objectUrl: string | null = null;
 
-        timeoutRef.current = setTimeout(() => {
-            if (loading) {
-                setLoading(false);
-                setError('Tempo limite excedido. O documento pode estar indisponível ou muito grande.');
+        const fetchDocument = async () => {
+            setLoading(true);
+            setError(null);
+
+            // Timeout para evitar loading infinito
+            timeoutRef.current = setTimeout(() => {
+                if (isMounted && loading) {
+                    setLoading(false);
+                    setError('Tempo limite excedido. O documento pode estar indisponível ou muito grande.');
+                }
+            }, FETCH_TIMEOUT);
+
+            try {
+                const blob = await documentsApi.download(documentId);
+
+                if (isMounted) {
+                    // Limpar URL anterior se existir
+                    if (blobUrl) {
+                        URL.revokeObjectURL(blobUrl);
+                    }
+
+                    objectUrl = URL.createObjectURL(blob);
+                    setBlobUrl(objectUrl);
+
+                    // Para imagens, marcar como carregado imediatamente
+                    // Para PDFs, o onLoadSuccess do Document fará isso
+                    if (isImage) {
+                        if (timeoutRef.current) {
+                            clearTimeout(timeoutRef.current);
+                        }
+                        setLoading(false);
+                    }
+                }
+            } catch (err) {
+                console.error('Erro ao buscar documento:', err);
+                if (isMounted) {
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                    }
+                    setLoading(false);
+                    setError('Erro ao carregar documento. Verifique sua conexão ou tente baixar o arquivo.');
+                }
             }
-        }, timeout);
+        };
+
+        fetchDocument();
 
         return () => {
+            isMounted = false;
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
         };
-    }, [loading, isPDF, retryCount]);
+    }, [documentId, retryCount]);
+
+    // Limpar blobUrl ao desmontar
+    useEffect(() => {
+        return () => {
+            if (blobUrl) {
+                URL.revokeObjectURL(blobUrl);
+            }
+        };
+    }, [blobUrl]);
 
     // Função para limpar timeout e marcar como carregado
     const clearTimeoutAndSetLoaded = () => {
@@ -81,6 +132,7 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
 
     // Função para tentar novamente
     const handleRetry = () => {
+        setBlobUrl(null);
         setLoading(true);
         setError(null);
         setRetryCount(prev => prev + 1);
@@ -205,7 +257,7 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
                                 <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                                 <p className="text-slate-400">Carregando documento...</p>
                                 <p className="text-xs text-slate-500">
-                                    Aguarde até {isPDF ? '30' : '15'} segundos
+                                    Aguarde até 30 segundos
                                 </p>
                             </div>
                         </div>
@@ -239,42 +291,30 @@ export function PreviewModal({ documentId, documentName, mimeType, onClose }: Pr
                     )}
 
                     {/* Imagem */}
-                    {isImage && !error && (
+                    {isImage && !error && blobUrl && (
                         <div className="flex items-center justify-center min-h-full relative">
-                            {/* Loading overlay para imagens */}
-                            {loading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                                        <p className="text-slate-400">Carregando imagem...</p>
-                                    </div>
-                                </div>
-                            )}
                             <img
                                 key={retryCount}
-                                src={previewUrl}
+                                src={blobUrl}
                                 alt={documentName}
                                 style={{
                                     transform: `scale(${zoom})`,
                                     transformOrigin: 'center',
-                                    opacity: loading ? 0 : 1,
                                 }}
                                 className="max-w-full max-h-full object-contain transition-all duration-200"
-                                onLoad={clearTimeoutAndSetLoaded}
                                 onError={() => {
-                                    clearTimeoutAndSetLoaded();
                                     setError('Erro ao carregar imagem. Verifique se o arquivo existe.');
                                 }}
                             />
                         </div>
                     )}
 
-                    {/* PDF - Sempre renderiza para permitir callbacks */}
-                    {isPDF && !error && (
-                        <div className={`flex justify-center ${loading ? 'opacity-0 absolute' : ''}`}>
+                    {/* PDF - Renderiza apenas quando blobUrl estiver disponível */}
+                    {isPDF && !error && blobUrl && (
+                        <div className="flex justify-center">
                             <Document
                                 key={retryCount}
-                                file={previewUrl}
+                                file={blobUrl}
                                 onLoadSuccess={({ numPages }) => {
                                     setTotalPages(numPages);
                                     clearTimeoutAndSetLoaded();
