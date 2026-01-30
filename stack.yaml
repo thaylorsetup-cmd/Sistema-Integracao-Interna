@@ -63,14 +63,14 @@ services:
       SMTP_FROM: "BBT Connect <chat.bbttransportes@gmail.com>"
 
       # Upload
-      UPLOAD_DIR: /app/uploads
+      UPLOAD_DIR: /app/packages/backend/uploads
       MAX_FILE_SIZE: "52428800"
       
       # Logs
       LOG_LEVEL: info
     volumes:
-      - bbtconnect_uploads:/app/uploads
-      - bbtconnect_logs:/app/logs
+      - bbtconnect_uploads:/app/packages/backend/uploads
+      - bbtconnect_logs:/app/packages/backend/logs
     networks:
       - network_public
     deploy:
