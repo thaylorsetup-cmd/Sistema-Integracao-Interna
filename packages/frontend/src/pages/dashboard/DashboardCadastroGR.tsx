@@ -20,7 +20,8 @@ import {
     FileCheck,
     Loader2,
     AlertCircle,
-    RotateCcw
+    RotateCcw,
+    Truck
 } from 'lucide-react';
 import { filaApi, documentsApi, type Submission as ApiSubmission, type Document as ApiDocument } from '@/services/api';
 import { useFilaSocket, type SubmissionNewEvent, type SubmissionUpdatedEvent } from '@/hooks/useSocket';
@@ -82,6 +83,16 @@ interface Submission {
     delays?: Delay[];
     created_at: string;
     data_conclusao?: string | null;
+    // Novos campos
+    origem?: string;
+    destino?: string;
+    valorMercadoria?: string;
+    tipoMercadoria?: string;
+    telMotorista?: string;
+    telProprietario?: string;
+    numeroPis?: string;
+    referenciasComerciais?: string[];
+    referenciasPessoais?: string[];
 }
 
 // Mapear status da API para status local
@@ -174,6 +185,23 @@ function mapApiSubmission(apiSubmission: ApiSubmission): Submission {
         prioridade: mapApiPriority(apiSubmission.prioridade || 'normal'),
         created_at: apiSubmission.created_at,
         data_conclusao: (apiSubmission as any).data_conclusao || null,
+        // Mapeamento novos campos
+        origem: (apiSubmission as any).origem,
+        destino: (apiSubmission as any).destino,
+        valorMercadoria: (apiSubmission as any).valor_mercadoria,
+        tipoMercadoria: (apiSubmission as any).tipo_mercadoria,
+        telMotorista: (apiSubmission as any).tel_motorista,
+        telProprietario: (apiSubmission as any).tel_proprietario,
+        numeroPis: (apiSubmission as any).numero_pis,
+        referenciasComerciais: [
+            (apiSubmission as any).referencia_comercial_1,
+            (apiSubmission as any).referencia_comercial_2
+        ].filter(Boolean),
+        referenciasPessoais: [
+            (apiSubmission as any).referencia_pessoal_1,
+            (apiSubmission as any).referencia_pessoal_2,
+            (apiSubmission as any).referencia_pessoal_3
+        ].filter(Boolean),
     };
 }
 
@@ -378,6 +406,94 @@ function DetailModal({
                             </div>
                         )}
                     </div>
+
+                    {/* Detalhes da Operação e Contato */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Dados da Viagem */}
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
+                                <Truck className="w-4 h-4 text-emerald-400" />
+                                Dados da Viagem
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p className="text-xs text-slate-400">Origem</p>
+                                    <p className="text-sm text-white">{submission.origem || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">Destino</p>
+                                    <p className="text-sm text-white">{submission.destino || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">Mercadoria</p>
+                                    <p className="text-sm text-white">{submission.tipoMercadoria || '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">Valor</p>
+                                    <p className="text-sm text-white">
+                                        {submission.valorMercadoria
+                                            ? `R$ ${submission.valorMercadoria}`
+                                            : '—'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Contatos */}
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
+                                <User className="w-4 h-4 text-blue-400" />
+                                Contatos e Referências
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p className="text-xs text-slate-400">Tel. Motorista</p>
+                                    <CopyButton text={submission.telMotorista || '—'} label="tel" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">Tel. Proprietário</p>
+                                    <CopyButton text={submission.telProprietario || '—'} label="tel prop" />
+                                </div>
+                                <div className="col-span-2">
+                                    <p className="text-xs text-slate-400">PIS</p>
+                                    <p className="text-sm text-white font-mono">{submission.numeroPis || '—'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lista de Referências */}
+                    {((submission.referenciasComerciais && submission.referenciasComerciais.length > 0) || (submission.referenciasPessoais && submission.referenciasPessoais.length > 0)) && (
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                            <h3 className="text-sm font-bold text-white mb-3">Referências Informadas</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {submission.referenciasComerciais && submission.referenciasComerciais.length > 0 && (
+                                    <div>
+                                        <p className="text-xs text-slate-400 mb-2 uppercase font-bold">Comerciais</p>
+                                        <ul className="space-y-1">
+                                            {submission.referenciasComerciais.map((ref, idx) => (
+                                                <li key={idx} className="text-sm text-white bg-slate-800/50 px-2 py-1.5 rounded border border-white/5">
+                                                    {ref}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {submission.referenciasPessoais && submission.referenciasPessoais.length > 0 && (
+                                    <div>
+                                        <p className="text-xs text-slate-400 mb-2 uppercase font-bold">Pessoais</p>
+                                        <ul className="space-y-1">
+                                            {submission.referenciasPessoais.map((ref, idx) => (
+                                                <li key={idx} className="text-sm text-white bg-slate-800/50 px-2 py-1.5 rounded border border-white/5">
+                                                    {ref}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Documentos Agrupados por Tipo */}
                     <div className="space-y-4">
@@ -807,7 +923,7 @@ export function DashboardCadastroGR() {
 
             if (response.success) {
                 // Recarregar dados para pegar delays atualizados
-                await loadSubmissions(false);
+                await loadSubmissions();
                 setShowDelayModal(false);
                 setDelayReason('');
                 setDelaySubmissionId(null);

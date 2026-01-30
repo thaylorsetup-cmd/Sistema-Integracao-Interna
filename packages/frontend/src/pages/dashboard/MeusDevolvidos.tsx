@@ -54,7 +54,10 @@ interface ViagemItem {
     devolvidoEm?: string;
     documentosCount: number;
     tipoMercadoria?: string;
+    valorMercadoria?: string;
     tipoCadastro?: string;
+    telMotorista?: string;
+    telProprietario?: string;
 }
 
 function mapApiToViagemItem(submission: Submission): ViagemItem {
@@ -79,7 +82,10 @@ function mapApiToViagemItem(submission: Submission): ViagemItem {
         devolvidoEm,
         documentosCount: submission.documents?.length || 0,
         tipoMercadoria: (submission as any).tipo_mercadoria,
+        valorMercadoria: (submission as any).valor_mercadoria,
         tipoCadastro: (submission as any).tipo_cadastro || 'novo_cadastro',
+        telMotorista: (submission as any).tel_motorista,
+        telProprietario: (submission as any).tel_proprietario,
     };
 }
 
@@ -108,10 +114,13 @@ function getStatusConfig(status: string) {
 const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
     { value: 'cnh', label: 'CNH' },
     { value: 'crlv', label: 'CRLV' },
-    { value: 'comprovante_endereco', label: 'Comprovante de Endereco' },
-    { value: 'contrato', label: 'Contrato' },
-    { value: 'foto_veiculo', label: 'Foto do Veiculo' },
-    { value: 'outro', label: 'Outro' },
+    { value: 'endereco', label: 'Comprovante de Endereço' },
+    { value: 'antt', label: 'ANTT' },
+    { value: 'bancario', label: 'Dados Bancários' },
+    { value: 'pamcard', label: 'PAMCARD' },
+    { value: 'gr', label: 'GR' },
+    { value: 'rcv', label: 'RCV' },
+    { value: 'outros', label: 'Outros' },
 ];
 
 type FilterStatus = 'todos' | 'pendente' | 'em_analise' | 'aprovado' | 'rejeitado' | 'devolvido';
@@ -133,7 +142,7 @@ export function MeusDevolvidos() {
     const [previewDoc, setPreviewDoc] = useState<DocType | null>(null);
     const [uploadingDoc, setUploadingDoc] = useState(false);
     const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
-    const [selectedDocType, setSelectedDocType] = useState<DocumentType>('outro');
+    const [selectedDocType, setSelectedDocType] = useState<DocumentType>('outros');
     const [showDocTypeSelect, setShowDocTypeSelect] = useState(false);
 
     // Conectar ao socket
@@ -367,8 +376,8 @@ export function MeusDevolvidos() {
                     <div className="flex items-center gap-3">
                         {/* Indicador de conexao */}
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${isConnected
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-red-500/20 text-red-400'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-red-500/20 text-red-400'
                             }`}>
                             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-red-400'}`} />
                             {isConnected ? 'Tempo Real' : 'Reconectando...'}
@@ -380,66 +389,60 @@ export function MeusDevolvidos() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     <div
                         onClick={() => setFilterStatus('todos')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'todos'
-                                ? 'bg-slate-600/30 border-2 border-slate-400'
-                                : 'bg-white/5 border border-white/10 hover:bg-white/10'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'todos'
+                            ? 'bg-slate-600/30 border-2 border-slate-400'
+                            : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-white">{stats.total}</p>
                         <p className="text-xs text-slate-400">Total</p>
                     </div>
                     <div
                         onClick={() => setFilterStatus('pendente')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'pendente'
-                                ? 'bg-yellow-500/30 border-2 border-yellow-400'
-                                : 'bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'pendente'
+                            ? 'bg-yellow-500/30 border-2 border-yellow-400'
+                            : 'bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-yellow-400">{stats.pendentes}</p>
                         <p className="text-xs text-yellow-400/70">Pendentes</p>
                     </div>
                     <div
                         onClick={() => setFilterStatus('em_analise')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'em_analise'
-                                ? 'bg-blue-500/30 border-2 border-blue-400'
-                                : 'bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'em_analise'
+                            ? 'bg-blue-500/30 border-2 border-blue-400'
+                            : 'bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-blue-400">{stats.emAnalise}</p>
                         <p className="text-xs text-blue-400/70">Em Analise</p>
                     </div>
                     <div
                         onClick={() => setFilterStatus('aprovado')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'aprovado'
-                                ? 'bg-emerald-500/30 border-2 border-emerald-400'
-                                : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'aprovado'
+                            ? 'bg-emerald-500/30 border-2 border-emerald-400'
+                            : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-emerald-400">{stats.aprovados}</p>
                         <p className="text-xs text-emerald-400/70">Aprovados</p>
                     </div>
                     <div
                         onClick={() => setFilterStatus('devolvido')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'devolvido'
-                                ? 'bg-orange-500/30 border-2 border-orange-400'
-                                : 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'devolvido'
+                            ? 'bg-orange-500/30 border-2 border-orange-400'
+                            : 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-orange-400">{stats.devolvidos}</p>
                         <p className="text-xs text-orange-400/70">Devolvidos</p>
                     </div>
                     <div
                         onClick={() => setFilterStatus('rejeitado')}
-                        className={`p-4 rounded-xl cursor-pointer transition-all ${
-                            filterStatus === 'rejeitado'
-                                ? 'bg-red-500/30 border-2 border-red-400'
-                                : 'bg-red-500/10 border border-red-500/20 hover:bg-red-500/20'
-                        }`}
+                        className={`p-4 rounded-xl cursor-pointer transition-all ${filterStatus === 'rejeitado'
+                            ? 'bg-red-500/30 border-2 border-red-400'
+                            : 'bg-red-500/10 border border-red-500/20 hover:bg-red-500/20'
+                            }`}
                     >
                         <p className="text-2xl font-bold text-red-400">{stats.rejeitados}</p>
                         <p className="text-xs text-red-400/70">Rejeitados</p>
@@ -493,11 +496,10 @@ export function MeusDevolvidos() {
                         return (
                             <div
                                 key={item.id}
-                                className={`bg-white/5 rounded-xl border transition-all ${
-                                    item.status === 'devolvido'
-                                        ? 'border-orange-500/30'
-                                        : 'border-white/10 hover:border-white/20'
-                                }`}
+                                className={`bg-white/5 rounded-xl border transition-all ${item.status === 'devolvido'
+                                    ? 'border-orange-500/30'
+                                    : 'border-white/10 hover:border-white/20'
+                                    }`}
                             >
                                 {/* Header do Card */}
                                 <div
@@ -510,24 +512,33 @@ export function MeusDevolvidos() {
                                                 <StatusIcon className={`w-4 h-4 ${statusConfig.color}`} />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 flex-wrap">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap">
                                                     <p className="font-bold text-white truncate">
                                                         {item.nomeMotorista || 'Motorista'}
                                                     </p>
                                                     {item.placa && (
-                                                        <span className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded font-mono">
+                                                        <span className="self-start sm:self-auto px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded font-mono">
                                                             {item.placa}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-slate-400">
-                                                    {item.dataEnvio} as {item.horaEnvio}
-                                                    {item.origem && item.destino && (
-                                                        <span className="ml-2">
-                                                            <MapPin className="w-3 h-3 inline" /> {item.origem} → {item.destino}
-                                                        </span>
+                                                <div className="flex flex-col gap-1 mt-1">
+                                                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        {item.dataEnvio} às {item.horaEnvio}
+                                                    </p>
+                                                    {(item.origem || item.destino) && (
+                                                        <p className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                                                            <MapPin className="w-3 h-3" />
+                                                            {item.origem || '?'} <span className="text-slate-500">→</span> {item.destino || '?'}
+                                                        </p>
                                                     )}
-                                                </p>
+                                                    {item.valorMercadoria && (
+                                                        <p className="text-xs text-slate-400">
+                                                            Valor: <span className="text-slate-200">R$ {item.valorMercadoria}</span>
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -547,22 +558,22 @@ export function MeusDevolvidos() {
                                 {/* Detalhes expandidos */}
                                 {isExpanded && (
                                     <div className="px-4 pb-4 border-t border-white/10 pt-4 space-y-4">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                                            <div>
-                                                <p className="text-slate-500 text-xs">CPF</p>
-                                                <p className="text-white font-mono">{item.cpf || '—'}</p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                                <p className="text-slate-500 mb-1">CPF</p>
+                                                <p className="text-white font-mono break-all">{item.cpf || '—'}</p>
                                             </div>
-                                            <div>
-                                                <p className="text-slate-500 text-xs">Placa</p>
-                                                <p className="text-white font-mono">{item.placa || '—'}</p>
+                                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                                <p className="text-slate-500 mb-1">Telefone</p>
+                                                <p className="text-white">{item.telMotorista || '—'}</p>
                                             </div>
-                                            <div>
-                                                <p className="text-slate-500 text-xs">Documentos</p>
-                                                <p className="text-white">{documents.length || item.documentosCount} anexos</p>
+                                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                                <p className="text-slate-500 mb-1">Mercadoria</p>
+                                                <p className="text-white capitalize">{item.tipoMercadoria || '—'}</p>
                                             </div>
-                                            <div>
-                                                <p className="text-slate-500 text-xs">Tipo</p>
-                                                <p className="text-white capitalize">{item.tipoCadastro?.replace('_', ' ') || 'Novo Cadastro'}</p>
+                                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                                <p className="text-slate-500 mb-1">Tipo Cadastro</p>
+                                                <p className="text-white capitalize">{item.tipoCadastro?.replace(/_/g, ' ') || 'Novo'}</p>
                                             </div>
                                         </div>
 

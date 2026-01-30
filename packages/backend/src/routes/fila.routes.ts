@@ -113,6 +113,19 @@ router.get(
           'operador.email as operador_email',
           'analista.nome as analista_nome',
           'analista.email as analista_email',
+          'submissions.origem',
+          'submissions.destino',
+          'submissions.valor_mercadoria',
+          'submissions.tipo_mercadoria',
+          'submissions.tel_motorista',
+          'submissions.tel_proprietario',
+          'submissions.numero_pis',
+          'submissions.endereco_residencial',
+          'submissions.referencia_comercial_1',
+          'submissions.referencia_comercial_2',
+          'submissions.referencia_pessoal_1',
+          'submissions.referencia_pessoal_2',
+          'submissions.referencia_pessoal_3',
         ]);
 
       // Filtro por role do usuario
