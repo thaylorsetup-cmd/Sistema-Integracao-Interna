@@ -246,7 +246,9 @@ export function DashboardOperador() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allRequiredComplete) return;
+    e.preventDefault();
+    // Bloqueio removido a pedido do usuário
+    // if (!allRequiredComplete) return;
     setIsSubmitting(true);
     setErrorMessage(null);
     setUploadProgress(0);
@@ -884,15 +886,12 @@ export function DashboardOperador() {
           </div>
         )}
 
-        {/* Mensagem de Erro */}
-        {!allRequiredComplete && !errorMessage && (
+        {/* Mensagem de Pendência (Apenas informativo) */}
+        {!allRequiredComplete && !errorMessage && unclassifiedFiles.length > 0 && (
           <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-500/10 rounded-lg px-4 py-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>
-              {unclassifiedFiles.length > 0
-                ? `Classifique ${unclassifiedFiles.length} documento${unclassifiedFiles.length > 1 ? 's' : ''}`
-                : `Faltam ${requiredDocs.length - completedDocs.length} documentos obrigatórios`
-              }
+              {`Classifique ${unclassifiedFiles.length} documento${unclassifiedFiles.length > 1 ? 's' : ''}`}
             </span>
           </div>
         )}
@@ -958,8 +957,8 @@ export function DashboardOperador() {
         {/* Botão de Enviar */}
         <button
           type="submit"
-          disabled={!allRequiredComplete || isSubmitting}
-          className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all duration-300 ${allRequiredComplete && !isSubmitting
+          disabled={isSubmitting}
+          className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all duration-300 ${!isSubmitting
             ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:opacity-90 shadow-lg shadow-emerald-500/30 hover:scale-[1.02]'
             : 'bg-slate-800 text-slate-500 cursor-not-allowed'
             }`}
