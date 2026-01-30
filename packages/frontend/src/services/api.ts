@@ -163,7 +163,18 @@ export interface CreateSubmissionData {
   destino?: string;
   localizacaoAtual?: string;
   tipoMercadoria?: string;
+  // Novos campos
+  valorMercadoria?: number;
+  telMotorista?: string;
+  telProprietario?: string;
+  numeroPis?: string;
+  referenciaComercial1?: string;
+  referenciaComercial2?: string;
+  referenciaPessoal1?: string;
+  referenciaPessoal2?: string;
+  referenciaPessoal3?: string;
 }
+
 
 export const filaApi = {
   // Listar fila

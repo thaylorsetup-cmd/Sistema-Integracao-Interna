@@ -92,6 +92,27 @@ export function DashboardOperador() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado do formulário de dados adicionais
+  const [formData, setFormData] = useState({
+    origem: '',
+    destino: '',
+    valorMercadoria: '',
+    tipoMercadoria: '',
+    telMotorista: '',
+    telProprietario: '',
+    numeroPis: '',
+    referenciaComercial1: '',
+    referenciaComercial2: '',
+    referenciaPessoal1: '',
+    referenciaPessoal2: '',
+    referenciaPessoal3: '',
+  });
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   // Estado para devolvidos
   const [devolvidosCount, setDevolvidosCount] = useState(0);
   const [newDevolvido, setNewDevolvido] = useState(false);
@@ -232,8 +253,21 @@ export function DashboardOperador() {
     setUploadStatus('Criando cadastro...');
 
     try {
-      // 1. Criar o cadastro na fila (apenas documentos, sem campos adicionais)
-      const createResponse = await filaApi.create({});
+      // 1. Criar o cadastro na fila com os dados do formulário
+      const createResponse = await filaApi.create({
+        origem: formData.origem || undefined,
+        destino: formData.destino || undefined,
+        tipoMercadoria: formData.tipoMercadoria || undefined,
+        valorMercadoria: formData.valorMercadoria ? parseFloat(formData.valorMercadoria) : undefined,
+        telMotorista: formData.telMotorista || undefined,
+        telProprietario: formData.telProprietario || undefined,
+        numeroPis: formData.numeroPis || undefined,
+        referenciaComercial1: formData.referenciaComercial1 || undefined,
+        referenciaComercial2: formData.referenciaComercial2 || undefined,
+        referenciaPessoal1: formData.referenciaPessoal1 || undefined,
+        referenciaPessoal2: formData.referenciaPessoal2 || undefined,
+        referenciaPessoal3: formData.referenciaPessoal3 || undefined,
+      });
 
       if (!createResponse.success || !createResponse.data) {
         throw new Error(createResponse.error || 'Erro ao criar cadastro');
@@ -411,6 +445,160 @@ export function DashboardOperador() {
                 }`}
               style={{ width: `${(completedDocs.length / requiredDocs.length) * 100}%` }}
             />
+          </div>
+        </div>
+
+        {/* Formulário de Dados Adicionais */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 border border-white/10">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-benfica-blue" />
+            Dados do Cadastro
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Origem e Destino */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Origem</label>
+              <input
+                type="text"
+                name="origem"
+                value={formData.origem}
+                onChange={handleFormChange}
+                placeholder="Cidade de origem"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Destino</label>
+              <input
+                type="text"
+                name="destino"
+                value={formData.destino}
+                onChange={handleFormChange}
+                placeholder="Cidade de destino"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Valor e Tipo da Mercadoria */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Valor da Mercadoria (R$)</label>
+              <input
+                type="number"
+                name="valorMercadoria"
+                value={formData.valorMercadoria}
+                onChange={handleFormChange}
+                placeholder="0,00"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Tipo da Mercadoria</label>
+              <input
+                type="text"
+                name="tipoMercadoria"
+                value={formData.tipoMercadoria}
+                onChange={handleFormChange}
+                placeholder="Ex: Carga seca, Grãos..."
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Telefones */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Tel. Motorista</label>
+              <input
+                type="tel"
+                name="telMotorista"
+                value={formData.telMotorista}
+                onChange={handleFormChange}
+                placeholder="(00) 00000-0000"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Tel. Proprietário</label>
+              <input
+                type="tel"
+                name="telProprietario"
+                value={formData.telProprietario}
+                onChange={handleFormChange}
+                placeholder="(00) 00000-0000"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* PIS */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Número PIS</label>
+              <input
+                type="text"
+                name="numeroPis"
+                value={formData.numeroPis}
+                onChange={handleFormChange}
+                placeholder="000.00000.00-0"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Referências Comerciais */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Ref. Comercial 1</label>
+              <input
+                type="text"
+                name="referenciaComercial1"
+                value={formData.referenciaComercial1}
+                onChange={handleFormChange}
+                placeholder="Nome e telefone"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Ref. Comercial 2</label>
+              <input
+                type="text"
+                name="referenciaComercial2"
+                value={formData.referenciaComercial2}
+                onChange={handleFormChange}
+                placeholder="Nome e telefone"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Referências Pessoais */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Ref. Pessoal 1</label>
+              <input
+                type="text"
+                name="referenciaPessoal1"
+                value={formData.referenciaPessoal1}
+                onChange={handleFormChange}
+                placeholder="Nome e telefone"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Ref. Pessoal 2</label>
+              <input
+                type="text"
+                name="referenciaPessoal2"
+                value={formData.referenciaPessoal2}
+                onChange={handleFormChange}
+                placeholder="Nome e telefone"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Ref. Pessoal 3</label>
+              <input
+                type="text"
+                name="referenciaPessoal3"
+                value={formData.referenciaPessoal3}
+                onChange={handleFormChange}
+                placeholder="Nome e telefone"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:border-benfica-blue focus:outline-none transition-colors"
+              />
+            </div>
           </div>
         </div>
 
