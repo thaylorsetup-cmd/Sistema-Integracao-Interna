@@ -51,16 +51,7 @@ const createSubmissionSchema = z.object({
   coordenadasRastreamento: z.record(z.unknown()).optional(),
 });
 
-// Schema para atualizar submission
-const updateSubmissionSchema = z.object({
-  nomeMotorista: z.string().min(2).optional(),
-  telefone: z.string().optional(),
-  email: z.string().email().optional(),
-  placa: z.string().optional(),
-  tipoVeiculo: z.string().optional(),
-  prioridade: z.enum(['normal', 'alta', 'urgente']).optional(),
-  observacoes: z.string().optional(),
-});
+
 
 /**
  * GET /api/fila
@@ -463,6 +454,33 @@ router.post('/', requireAuth, requirePermission('criarCadastros'), async (req, r
   }
 });
 
+// Schema para atualizar submission
+const updateSubmissionSchema = z.object({
+  nomeMotorista: z.string().min(2).optional(),
+  cpf: z.string().optional(), // Permitir corrigir CPF se necessario
+  telefone: z.string().optional(),
+  email: z.string().email().optional(),
+  placa: z.string().optional(),
+  tipoVeiculo: z.string().optional(),
+  prioridade: z.enum(['normal', 'alta', 'urgente']).optional(),
+  observacoes: z.string().optional(),
+
+  // Novos campos para edição (migration 011)
+  origem: z.string().optional(),
+  destino: z.string().optional(),
+  tipoMercadoria: z.string().optional(),
+  valorMercadoria: z.number().optional(),
+  telMotorista: z.string().optional(),
+  telProprietario: z.string().optional(),
+  numeroPis: z.string().optional(),
+  enderecoResidencial: z.string().optional(),
+  referenciaComercial1: z.string().optional(),
+  referenciaComercial2: z.string().optional(),
+  referenciaPessoal1: z.string().optional(),
+  referenciaPessoal2: z.string().optional(),
+  referenciaPessoal3: z.string().optional(),
+});
+
 /**
  * PUT /api/fila/:id
  * Atualiza submission
@@ -488,6 +506,7 @@ router.put('/:id', requireAuth, requirePermission('editarCadastros'), async (req
     }
 
     // Nao pode editar submissions ja aprovadas/rejeitadas
+    // Permitir editar se estiver pendente, em_analise (com cuidado) ou devolvido
     if (existing.status === 'aprovado' || existing.status === 'rejeitado') {
       return res.status(400).json({
         success: false,
@@ -500,12 +519,28 @@ router.put('/:id', requireAuth, requirePermission('editarCadastros'), async (req
       .updateTable('submissions')
       .set({
         ...(data.nomeMotorista && { nome_motorista: data.nomeMotorista }),
+        ...(data.cpf && { cpf: data.cpf }),
         ...(data.telefone !== undefined && { telefone: data.telefone }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.placa !== undefined && { placa: data.placa }),
         ...(data.tipoVeiculo !== undefined && { tipo_veiculo: data.tipoVeiculo }),
         ...(data.prioridade && { prioridade: data.prioridade }),
         ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
+
+        // Novos campos
+        ...(data.origem !== undefined && { origem: data.origem }),
+        ...(data.destino !== undefined && { destino: data.destino }),
+        ...(data.tipoMercadoria !== undefined && { tipo_mercadoria: data.tipoMercadoria }),
+        ...(data.valorMercadoria !== undefined && { valor_mercadoria: data.valorMercadoria }),
+        ...(data.telMotorista !== undefined && { tel_motorista: data.telMotorista }),
+        ...(data.telProprietario !== undefined && { tel_proprietario: data.telProprietario }),
+        ...(data.numeroPis !== undefined && { numero_pis: data.numeroPis }),
+        ...(data.enderecoResidencial !== undefined && { endereco_residencial: data.enderecoResidencial }),
+        ...(data.referenciaComercial1 !== undefined && { referencia_comercial_1: data.referenciaComercial1 }),
+        ...(data.referenciaComercial2 !== undefined && { referencia_comercial_2: data.referenciaComercial2 }),
+        ...(data.referenciaPessoal1 !== undefined && { referencia_pessoal_1: data.referenciaPessoal1 }),
+        ...(data.referenciaPessoal2 !== undefined && { referencia_pessoal_2: data.referenciaPessoal2 }),
+        ...(data.referenciaPessoal3 !== undefined && { referencia_pessoal_3: data.referenciaPessoal3 }),
       })
       .where('id', '=', id)
       .returning(['id', 'nome_motorista', 'status', 'updated_at'])

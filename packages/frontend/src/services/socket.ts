@@ -57,6 +57,7 @@ export function getSocket(): Socket {
       transports: ['websocket', 'polling'],
       autoConnect: false,
     });
+    console.log('[Socket] Nova instância criada');
 
     // Logs de conexao
     socket.on('connect', () => {

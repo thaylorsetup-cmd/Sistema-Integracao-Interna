@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Container } from '@/components/layout';
 import {
@@ -851,6 +851,13 @@ export function DashboardCadastroGR() {
         loadSubmissions();
     }, [loadSubmissions]);
 
+    // Ref para selectedSubmission para não recriar o listener do socket
+    const selectedSubmissionRef = useRef<Submission | null>(null);
+
+    useEffect(() => {
+        selectedSubmissionRef.current = selectedSubmission;
+    }, [selectedSubmission]);
+
     // WebSocket para atualizações em tempo real
     const handleNewSubmission = useCallback((event: SubmissionNewEvent) => {
         const newSubmission = mapApiSubmission(event.submission);
@@ -864,11 +871,11 @@ export function DashboardCadastroGR() {
                 : sub
         ));
 
-        // Atualizar modal se estiver aberto
-        if (selectedSubmission?.id === event.submission.id) {
+        // Atualizar modal se estiver aberto (usando ref para evitar recriação da função)
+        if (selectedSubmissionRef.current?.id === event.submission.id) {
             setSelectedSubmission(mapApiSubmission(event.submission));
         }
-    }, [selectedSubmission]);
+    }, []); // Dependências vaziass
 
     const { isConnected } = useFilaSocket({
         onNew: handleNewSubmission,

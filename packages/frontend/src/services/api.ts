@@ -173,6 +173,7 @@ export interface CreateSubmissionData {
   referenciaPessoal1?: string;
   referenciaPessoal2?: string;
   referenciaPessoal3?: string;
+  enderecoResidencial?: string;
 }
 
 

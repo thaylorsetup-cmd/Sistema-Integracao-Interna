@@ -31,12 +31,14 @@ import {
     Trash2,
     FileImage,
     Upload,
+    Edit2,
 } from 'lucide-react';
 import { filaApi, documentsApi, type Submission, type Document as DocType, type DocumentType } from '@/services/api';
 import { useFilaSocket, type SubmissionUpdatedEvent, onSubmissionDevolvida, type SubmissionDevolvidaEvent } from '@/hooks/useSocket';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/contexts/useAuth';
 import { PreviewModal } from '@/components/PreviewModal';
+import { EditSubmissionModal } from '@/components/EditSubmissionModal';
 
 interface ViagemItem {
     id: string;
@@ -58,6 +60,13 @@ interface ViagemItem {
     tipoCadastro?: string;
     telMotorista?: string;
     telProprietario?: string;
+    numeroPis?: string;
+    enderecoResidencial?: string;
+    referenciaComercial1?: string;
+    referenciaComercial2?: string;
+    referenciaPessoal1?: string;
+    referenciaPessoal2?: string;
+    referenciaPessoal3?: string;
 }
 
 function mapApiToViagemItem(submission: Submission): ViagemItem {
@@ -86,6 +95,13 @@ function mapApiToViagemItem(submission: Submission): ViagemItem {
         tipoCadastro: (submission as any).tipo_cadastro || 'novo_cadastro',
         telMotorista: (submission as any).tel_motorista,
         telProprietario: (submission as any).tel_proprietario,
+        numeroPis: (submission as any).numero_pis,
+        enderecoResidencial: (submission as any).endereco_residencial,
+        referenciaComercial1: (submission as any).referencia_comercial_1,
+        referenciaComercial2: (submission as any).referencia_comercial_2,
+        referenciaPessoal1: (submission as any).referencia_pessoal_1,
+        referenciaPessoal2: (submission as any).referencia_pessoal_2,
+        referenciaPessoal3: (submission as any).referencia_pessoal_3,
     };
 }
 
@@ -128,6 +144,7 @@ type FilterStatus = 'todos' | 'pendente' | 'em_analise' | 'aprovado' | 'rejeitad
 export function MeusDevolvidos() {
     const { user } = useAuth();
     const [viagens, setViagens] = useState<ViagemItem[]>([]);
+    const [editingSubmission, setEditingSubmission] = useState<ViagemItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -724,7 +741,17 @@ export function MeusDevolvidos() {
 
                                         {/* Acoes */}
                                         {item.status === 'devolvido' && (
-                                            <div className="flex justify-end pt-2">
+                                            <div className="flex justify-end pt-2 gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingSubmission(item);
+                                                    }}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white font-bold rounded-lg hover:bg-slate-600 transition-colors"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                    Editar Dados
+                                                </button>
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -788,6 +815,14 @@ export function MeusDevolvidos() {
                     onClose={() => setPreviewDoc(null)}
                 />
             )}
+
+            {/* Modal de Edicao */}
+            <EditSubmissionModal
+                isOpen={!!editingSubmission}
+                onClose={() => setEditingSubmission(null)}
+                submission={editingSubmission}
+                onSuccess={() => loadViagens()}
+            />
         </Container>
     );
 }

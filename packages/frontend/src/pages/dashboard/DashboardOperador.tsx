@@ -136,6 +136,22 @@ export function DashboardOperador() {
     loadDevolvidosCount();
   }, []);
 
+  // Ref para arquivos para cleanup no unmount
+  const filesRef = useRef(files);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  // Cleanup de previews ao desmontar
+  useEffect(() => {
+    return () => {
+      filesRef.current.forEach(file => {
+        if (file.preview) URL.revokeObjectURL(file.preview);
+      });
+    };
+  }, []);
+
   // Listener para novas devoluções via WebSocket
   useEffect(() => {
     const unsub = onSubmissionDevolvida((event: SubmissionDevolvidaEvent) => {
