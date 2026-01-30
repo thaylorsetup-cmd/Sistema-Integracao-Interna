@@ -79,14 +79,23 @@ services:
         # API acessível via /api no mesmo domínio
         traefik.enable: "true"
         traefik.docker.network: network_public
+        
+        # Middleware para uploads grandes (50MB)
+        traefik.http.middlewares.bbt-buffering.buffering.maxRequestBodyBytes: "52428800"
+        traefik.http.middlewares.bbt-buffering.buffering.maxResponseBodyBytes: "52428800"
+        traefik.http.middlewares.bbt-buffering.buffering.memRequestBodyBytes: "52428800"
+        
+        # Router para API
         traefik.http.routers.bbt-api.rule: "Host(`control.bbttransportes.com.br`) && PathPrefix(`/api`)"
         traefik.http.routers.bbt-api.entrypoints: websecure
         traefik.http.routers.bbt-api.tls: "true"
         traefik.http.routers.bbt-api.tls.certresolver: letsencryptresolver
         traefik.http.routers.bbt-api.service: bbt-api
+        traefik.http.routers.bbt-api.middlewares: bbt-buffering@docker
         traefik.http.services.bbt-api.loadbalancer.server.port: "3001"
         traefik.http.services.bbt-api.loadbalancer.passHostHeader: "true"
-        # WebSocket para Socket.IO
+        
+        # Router para WebSocket (Socket.IO)
         traefik.http.routers.bbt-ws.rule: "Host(`control.bbttransportes.com.br`) && PathPrefix(`/socket.io`)"
         traefik.http.routers.bbt-ws.entrypoints: websecure
         traefik.http.routers.bbt-ws.tls: "true"
