@@ -61,6 +61,11 @@ services:
   # =====================================================
   backend:
     image: bbtconnect-backend:latest
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    # Adicionando delay de 10s antes de iniciar e depois usar npm start
+    command: sh -c "echo 'Aguardando 10s para inicializacao...' && sleep 10 && npm start"
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -88,8 +93,10 @@ services:
         delay: 10s
         order: start-first
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health" ]
       interval: 30s
@@ -102,6 +109,9 @@ services:
   # =====================================================
   frontend:
     image: bbtconnect-frontend:latest
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
     networks:
       - bbt_network
       - network_public
