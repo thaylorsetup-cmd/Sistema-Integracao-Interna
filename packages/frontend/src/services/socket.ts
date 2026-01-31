@@ -55,7 +55,7 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(WS_URL, {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'], // Forçar WebSocket
       autoConnect: false,
     });
     console.log('[Socket] Nova instância criada');

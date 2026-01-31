@@ -27,31 +27,39 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 interface PreviewModalProps {
-    documentId: string;
+    documentId?: string; // Opcional se fileUrl for fornecido
     documentName: string;
     mimeType: string;
     onClose: () => void;
+    fileUrl?: string; // URL blob local ou externa
 }
 
 // Timeout em ms
 const FETCH_TIMEOUT = 30000; // 30 segundos
 
-export function PreviewModal({ documentId, documentName, mimeType, onClose }: PreviewModalProps) {
-    const [loading, setLoading] = useState(true);
+export function PreviewModal({ documentId, documentName, mimeType, onClose, fileUrl }: PreviewModalProps) {
+    const [loading, setLoading] = useState(!fileUrl);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [downloading, setDownloading] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [blobUrl, setBlobUrl] = useState<string | null>(fileUrl || null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const isPDF = mimeType === 'application/pdf';
     const isImage = mimeType.startsWith('image/');
 
-    // Buscar documento via Axios (com cookies de autenticação)
+    // Buscar documento via Axios (com cookies de autenticação) APENAS se nao tiver fileUrl
     useEffect(() => {
+        if (fileUrl) {
+            setLoading(false);
+            return;
+        }
+
+        if (!documentId) return;
+
         let isMounted = true;
         let objectUrl: string | null = null;
 

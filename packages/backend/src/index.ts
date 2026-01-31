@@ -120,10 +120,14 @@ import { seed } from './db/seed.js';
 async function waitForDatabase(maxRetries = 15, delayMs = 3000): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     logger.info(`Tentando conectar ao banco de dados (tentativa ${attempt}/${maxRetries})...`);
-    const connected = await checkDatabaseConnection();
-    if (connected) return true;
+    // Usar silent=true para evitar flood de erros no log durante startup
+    const connected = await checkDatabaseConnection(attempt < maxRetries);
+    if (connected) {
+      logger.info('Conexao com banco estabelecida com sucesso!');
+      return true;
+    }
     if (attempt < maxRetries) {
-      logger.warn(`Banco nao disponivel. Aguardando ${delayMs / 1000}s...`);
+      logger.warn(`Banco nao disponivel (tentativa ${attempt}). Aguardando ${delayMs / 1000}s...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -136,6 +140,7 @@ async function start() {
     // Aguardar conexao com banco (retry)
     const dbConnected = await waitForDatabase();
     if (!dbConnected) {
+      // Ultima tentativa falhou, logar erro real (se nao foi logado pelo checkDatabaseConnection silencioso)
       logger.error('Falha na conexao com banco de dados apos todas as tentativas');
       process.exit(1);
     }

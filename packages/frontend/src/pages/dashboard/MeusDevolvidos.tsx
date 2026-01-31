@@ -77,7 +77,7 @@ function mapApiToViagemItem(submission: Submission): ViagemItem {
 
     return {
         id: submission.id,
-        nomeMotorista: submission.nome_motorista || 'Nao informado',
+        nomeMotorista: submission.nome_motorista || submission.cpf || 'Motorista nao identificado',
         cpf: submission.cpf || '',
         placa: submission.placa || '',
         origem: (submission as any).origem || '',
@@ -531,7 +531,7 @@ export function MeusDevolvidos() {
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap">
                                                     <p className="font-bold text-white truncate">
-                                                        {item.nomeMotorista || 'Motorista'}
+                                                        {item.nomeMotorista}
                                                     </p>
                                                     {item.placa && (
                                                         <span className="self-start sm:self-auto px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded font-mono">

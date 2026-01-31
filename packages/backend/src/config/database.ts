@@ -17,11 +17,14 @@ export const pool = new Pool({
   database: env.POSTGRES_DB,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 25, // Aumentado de 20 para 25 conexoes (ideal para 10-20 usuarios)
+  max: 25, // Aumentado de 20 para 25 conexoes
   min: 5, // Manter 5 conexoes sempre ativas
   idleTimeoutMillis: 30000, // Fechar conexoes idle apos 30s
-  connectionTimeoutMillis: 5000, // Timeout de conexao em 5s (aumentado de 2s)
+  connectionTimeoutMillis: 10000, // Aumentado para 10s para redes instaveis
   allowExitOnIdle: false, // Nao fechar pool automaticamente
+  keepAlive: true, // Habilitar TCP Keep-Alive para evitar quedas silenciosas
+  keepAliveInitialDelayMillis: 10000, // Delay inicial do Keep-Alive
+  application_name: 'bbt-connect-backend', // Identificacao no banco
 });
 
 // Eventos do pool
@@ -50,13 +53,13 @@ export const db = new Kysely<Database>({
 });
 
 // Funcao para verificar conexao
-export async function checkDatabaseConnection(): Promise<boolean> {
+export async function checkDatabaseConnection(silent = false): Promise<boolean> {
   try {
     const result = await pool.query('SELECT NOW()');
-    logger.info(`Conexao com PostgreSQL OK: ${result.rows[0].now}`);
+    if (!silent) logger.info(`Conexao com PostgreSQL OK: ${result.rows[0].now}`);
     return true;
   } catch (error) {
-    logger.error('Falha na conexao com PostgreSQL:', error);
+    if (!silent) logger.error('Falha na conexao com PostgreSQL:', error);
     return false;
   }
 }

@@ -23,7 +23,7 @@ export function initializeSocket(httpServer: HttpServer): Server {
     },
     pingTimeout: 60000,
     pingInterval: 25000,
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'], // Forçar WebSocket para evitar polling e erros de sessao
   });
 
   // Middleware de autenticacao
