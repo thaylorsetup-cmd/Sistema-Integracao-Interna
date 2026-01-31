@@ -38,10 +38,13 @@ export function Header({ className = '' }: HeaderProps) {
             <div className="flex-shrink-0">
               <div className="flex items-center gap-3">
                 {/* Icon */}
-                <div className="p-2 bg-gradient-to-br from-benfica-blue to-blue-700 rounded-xl shadow-lg shadow-benfica-blue/30 border border-white/20">
-                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                  </svg>
+                {/* Logo Image */}
+                <div className="relative">
+                  <img
+                    src="/logo-bbt-white.png"
+                    alt="BBT Transportes"
+                    className="h-10 w-auto object-contain hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
                 <div>
                   <h1 className="text-lg font-bold tracking-tight text-white">
