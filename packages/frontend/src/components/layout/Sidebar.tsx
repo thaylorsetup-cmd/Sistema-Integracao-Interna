@@ -97,7 +97,7 @@ export function Sidebar({ className = '' }: SidebarProps) {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-gradient-to-r from-benfica-red to-red-700 text-white rounded-2xl shadow-2xl shadow-benfica-red/40 hover:shadow-benfica-red/60 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/20"
+        className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-gradient-to-r from-benfica-blue to-blue-700 text-white rounded-2xl shadow-2xl shadow-benfica-blue/40 hover:shadow-benfica-blue/60 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/20"
         aria-label="Toggle menu"
       >
         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
