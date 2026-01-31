@@ -452,6 +452,7 @@ router.post('/', requireAuth, requirePermission('criarCadastros'), async (req, r
   try {
     const authReq = req as AuthenticatedRequest;
     const data = createSubmissionSchema.parse(req.body);
+    logger.info(`Recebido payload de criacao: ${JSON.stringify(data)}`);
 
     const submission = await db
       .insertInto('submissions')

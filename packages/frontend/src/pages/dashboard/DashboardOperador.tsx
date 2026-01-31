@@ -263,9 +263,26 @@ export function DashboardOperador() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.preventDefault();
-    // Bloqueio removido a pedido do usuário
-    // if (!allRequiredComplete) return;
+    // Validação 1: Arquivos não classificados
+    if (unclassifiedFiles.length > 0) {
+      setErrorMessage(`Existem ${unclassifiedFiles.length} arquivo(s) não classificado(s). Por favor, classifique-os ou remova-os.`);
+      return;
+    }
+
+    // Validação 2: Documentos obrigatórios
+    if (!allRequiredComplete) {
+      const missing = requiredDocs.filter(d => getFilesForType(d.id).length === 0);
+      const missingNames = missing.map(d => d.shortLabel).join(', ');
+      setErrorMessage(`Faltam documentos obrigatórios: ${missingNames}`);
+      return;
+    }
+
+    // Validação 3: Campos essenciais (Origem/Destino)
+    if (!formData.origem.trim() || !formData.destino.trim()) {
+      setErrorMessage('Origem e Destino são obrigatórios. Por favor preencha os dados da viagem.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     setUploadProgress(0);
