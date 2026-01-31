@@ -20,8 +20,8 @@ export function HelpButton({ className }: HelpButtonProps) {
                 type="button"
                 onClick={() => setIsModalOpen(true)}
                 className={cn(
-                    // Posicionamento fixo
-                    'fixed bottom-6 right-6 z-40',
+                    // Posicionamento fixo (Mobile: acima do menu / Desktop: canto inferior)
+                    'fixed right-6 z-40 bottom-24 lg:bottom-6',
                     // Tamanho e formato
                     'w-14 h-14 rounded-full',
                     // Background com glassmorphism
