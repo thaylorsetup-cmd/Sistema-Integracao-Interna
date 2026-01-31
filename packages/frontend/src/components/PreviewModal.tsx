@@ -20,7 +20,7 @@ import {
 import { documentsApi } from '@/services/api';
 
 // Configurar worker do PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Importar estilos do react-pdf
 import 'react-pdf/dist/Page/AnnotationLayer.css';
