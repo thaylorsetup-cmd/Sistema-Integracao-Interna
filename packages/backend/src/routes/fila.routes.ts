@@ -72,6 +72,9 @@ router.get(
         search,
         page = '1',
         limit = '20',
+        verTodos,
+        dataInicio,
+        dataFim,
       } = req.query;
 
       let query = db
@@ -125,7 +128,30 @@ router.get(
         query = query.where('submissions.operador_id', '=', authReq.user.id);
       }
 
-      // Filtros
+      // Filtros de Data
+      // Por padrao, mostra apenas submissions de HOJE, a menos que verTodos=true seja passado
+      // Isso atende ao requisito: "todo dia tem que atualizar, sumir os de ontem e atualizar só o que for recebido hoje"
+      if (verTodos !== 'true') {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0); // Inicio do dia local do servidor
+
+        if (dataInicio && typeof dataInicio === 'string') {
+          const dtInicio = new Date(dataInicio);
+          query = query.where('submissions.data_envio', '>=', dtInicio);
+        } else if (!search) {
+          // Se nao houver busca nem data especifica, aplica filtro de hoje
+          // Se houver busca (search), ignoramos o filtro de data padrão para procurar em tudo
+          query = query.where('submissions.data_envio', '>=', hoje);
+        }
+
+        if (dataFim && typeof dataFim === 'string') {
+          const dtFim = new Date(dataFim);
+          dtFim.setHours(23, 59, 59, 999);
+          query = query.where('submissions.data_envio', '<=', dtFim);
+        }
+      }
+
+      // Filtros padrao
       if (status) {
         query = query.where('submissions.status', '=', status as SubmissionStatus);
       }
@@ -143,6 +169,7 @@ router.get(
       }
 
       if (search && typeof search === 'string') {
+        // Busca textual
         query = query.where((eb) =>
           eb.or([
             eb('submissions.nome_motorista', 'ilike', `%${search}%`),
@@ -152,15 +179,35 @@ router.get(
         );
       }
 
-      // Contagem total - aplicar mesmos filtros para paginação correta
+      // Count query construction
       let countQuery = db
         .selectFrom('submissions')
         .select(db.fn.count('id').as('count'));
 
-      // Aplicar mesmos filtros ao count
+      // Re-apply filters to countQuery
       if (authReq.user?.role === 'operacional') {
         countQuery = countQuery.where('operador_id', '=', authReq.user.id);
       }
+
+      // Re-apply date Logic to Count
+      if (verTodos !== 'true') {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        if (dataInicio && typeof dataInicio === 'string') {
+          const dtInicio = new Date(dataInicio);
+          countQuery = countQuery.where('data_envio', '>=', dtInicio);
+        } else if (!search) {
+          countQuery = countQuery.where('data_envio', '>=', hoje);
+        }
+
+        if (dataFim && typeof dataFim === 'string') {
+          const dtFim = new Date(dataFim);
+          dtFim.setHours(23, 59, 59, 999);
+          countQuery = countQuery.where('data_envio', '<=', dtFim);
+        }
+      }
+
       if (status) {
         countQuery = countQuery.where('status', '=', status as SubmissionStatus);
       }
@@ -186,7 +233,7 @@ router.get(
       const [submissions, totalResult] = await Promise.all([
         query
           .orderBy('submissions.prioridade', 'desc')
-          .orderBy('submissions.data_envio', 'asc')
+          .orderBy('submissions.data_envio', 'desc') // Mudado para DESC (Mais recentes primeiro)
           .limit(Number(limit))
           .offset((Number(page) - 1) * Number(limit))
           .execute(),
@@ -328,14 +375,34 @@ router.get('/:id', requireAuth, async (req, res) => {
         'submissions.data_conclusao',
         'submissions.observacoes',
         'submissions.motivo_rejeicao',
-        'submissions.created_at',
+        'submissions.categoria_rejeicao',
+        'submissions.tipo_cadastro',
+        'submissions.devolvido_em',
+        'submissions.devolvido_por',
         'submissions.updated_at',
+        'submissions.created_at',
         'operador.id as operador_id',
         'operador.nome as operador_nome',
         'operador.email as operador_email',
         'analista.id as analista_id',
         'analista.nome as analista_nome',
         'analista.email as analista_email',
+        // Novos campos
+        'submissions.origem',
+        'submissions.destino',
+        'submissions.valor_mercadoria',
+        'submissions.tipo_mercadoria',
+        'submissions.tel_motorista',
+        'submissions.tel_proprietario',
+        'submissions.numero_pis',
+        'submissions.endereco_residencial',
+        'submissions.referencia_comercial_1',
+        'submissions.referencia_comercial_2',
+        'submissions.referencia_pessoal_1',
+        'submissions.referencia_pessoal_2',
+        'submissions.referencia_pessoal_3',
+        'submissions.requer_rastreamento',
+        'submissions.coordenadas_rastreamento',
       ])
       .executeTakeFirst();
 
